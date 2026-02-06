@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="WinGuard/WinGuard.vcxproj" Id="fd2383d5-4dd8-43d3-9b70-c57ec148e801" />
+</Solution>
