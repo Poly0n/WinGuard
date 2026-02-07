@@ -65,8 +65,16 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 	
 	
 	for (auto& [pid, proc] : processSnapshot) {
+
 		if (proc.path.empty() || proc.path == L"UNKNOWN")
 			continue;
+
+		std::wstring path = proc.path;
+		std::transform(path.begin(), path.end(), path.begin(), ::tolower);
+
+		if (whitelist.doesContain(proc.path) && verifyFileSignature(proc.path)  == ProcessEnumerator::SUCCESS) {
+			continue;
+		}
 		
 		proc.certStatus = ProcessEnumerator::UNKNOWN;
 		proc.directoryWritable = false;
@@ -290,6 +298,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 }
 
 bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot) {
+	Whitelist whitelist;
 	HMODULE hMods[1024];
 	HANDLE hProcess;
 	DWORD cbNeeded;
@@ -316,6 +325,10 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 			if (GetModuleFileNameEx(hProcess, hMods[i], szModName,
 				sizeof(szModName) / sizeof(TCHAR))) {
+
+				if (whitelist.doesContain(szModName)) {
+					continue;
+				}
 
 				bool relative = proc.isRelativePath(szModName);
 				bool suspicious = proc.isDLLPathSuspicious(szModName);
