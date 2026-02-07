@@ -120,7 +120,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		std::wstring path = proc.path;
 		std::transform(path.begin(), path.end(), path.begin(), ::tolower);
 
-		if (whitelist.doesContain(path) && getCachedSignature(path)  == ProcessEnumerator::SUCCESS) {
+		if (whitelist.doesContain(proc.path) || whitelist.doesContain(path)) {
 			continue;
 		}
 		
@@ -128,13 +128,13 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		proc.directoryWritable = false;
 		proc.fileWritable = false;
 
-		ProcessEnumerator::fileVerification verify = getCachedSignature(path);
+		ProcessEnumerator::fileVerification verify = getCachedSignature(proc.path);
 
 		proc.certStatus = verify;
 
 		std::wstring directory;
 		try {
-			directory = std::filesystem::path(path).parent_path().wstring();
+			directory = std::filesystem::path(proc.path).parent_path().wstring();
 		}
 		catch (...) {
 			directory = L"";
@@ -150,7 +150,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 			}
 		}
 
-		bool fileWritable = getFileWritableCache(directory, path);
+		bool fileWritable = getFileWritableCache(directory, proc.path);
 
 		proc.fileWritable = fileWritable;
 		if (fileWritable) {
@@ -334,17 +334,17 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 			if (GetModuleFileNameEx(hProcess, hMods[i], szModName,
 				sizeof(szModName) / sizeof(TCHAR))) {
 
-				if (whitelist.doesContain(lowerModName)) {
+				if (whitelist.doesContain(lowerModName) || whitelist.doesContain(szModName)) {
 					continue;
 				}
 
-				bool relative = proc.isRelativePath(lowerModName);
-				bool suspicious = proc.isDLLPathSuspicious(lowerModName);
+				bool relative = proc.isRelativePath(szModName);
+				bool suspicious = proc.isDLLPathSuspicious(szModName);
 
 
 				if (relative && suspicious) {
 
-					filerVer = getCachedSignature(lowerModName);
+					filerVer = getCachedSignature(szModName);
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
@@ -364,7 +364,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					continue;
 				}
 				else if (suspicious) {
-					filerVer = getCachedSignature(lowerModName);
+					filerVer = getCachedSignature(szModName);
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
@@ -384,7 +384,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					continue;
 				}
 				else if (relative) {
-					filerVer = getCachedSignature(lowerModName);
+					filerVer = getCachedSignature(szModName);
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
