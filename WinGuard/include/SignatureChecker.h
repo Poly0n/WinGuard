@@ -6,7 +6,9 @@
 #include <winternl.h>
 #include <SoftPub.h>
 #include <filesystem>
+#include <stdlib.h>
 #include "Logger.h"
+#include "Whitelist.h"
 
 #pragma comment(lib, "wintrust.lib")
 
@@ -21,10 +23,10 @@ public:
 	void analyseProcessBehavior(std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation> &processSnapshot);
 	void parentProcesses(std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot);
 private:
+	Whitelist whitelist;
 	std::wstring getCommandLineBuffer(HANDLE hProcess);
 	ProcessEnumerator::fileVerification verifyFileSignature(const std::wstring& filePath);
 	bool isDirectoryUserWritable(const std::wstring& filePath);
 	bool getModules(DWORD pid, ProcessEnumerator& proc, std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot);	
 };
-
 
