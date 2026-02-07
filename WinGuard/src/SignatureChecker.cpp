@@ -58,10 +58,58 @@ ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const 
 	}
 }
 
+bool SignatureChecker::isDirectoryUserWritable(const std::wstring& filePath) {
+	std::wstring testFile = filePath + L"\\.writetests";
+	HANDLE hFile = CreateFileW(testFile.c_str(), GENERIC_WRITE,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+		nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY |
+		FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	CloseHandle(hFile);
+	return true;
+}
+
+ProcessEnumerator::fileVerification SignatureChecker::getCachedSignature(const std::wstring& path) {
+	auto it = signatureCache.find(path);
+	if (it != signatureCache.end()) {
+		return it->second;
+	}
+
+	auto result = verifyFileSignature(path);
+
+	signatureCache[path] = result;
+	return result;
+}
+
+bool SignatureChecker::getCachedDirectory(const std::wstring& dir) {
+	auto it = directoryWritableCache.find(dir);
+	if (it != directoryWritableCache.end())
+		return it->second;
+
+	auto result = isDirectoryUserWritable(dir);
+	directoryWritableCache[dir] = result;
+	return result;
+}
+
+bool SignatureChecker::getFileWritableCache(const std::wstring& dir, const std::wstring& path) {
+
+	auto it = fileWritableCache.find(path);
+	if (it != fileWritableCache.end())
+		return it->second;
+
+	HANDLE hFile = CreateFileW(path.c_str(), FILE_WRITE_DATA | FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+	auto result = (hFile != INVALID_HANDLE_VALUE);
+	fileWritableCache[path] = result;
+
+	CloseHandle(hFile);
+
+	return result;
+}
+
 void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot) {
-	std::unordered_map<std::wstring, ProcessEnumerator::fileVerification> signatureCache;
-	std::unordered_map<std::wstring, bool> directoryWritableCache;
-	std::unordered_map<std::wstring, bool> fileWritableCache;
 	
 	
 	for (auto& [pid, proc] : processSnapshot) {
@@ -72,7 +120,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		std::wstring path = proc.path;
 		std::transform(path.begin(), path.end(), path.begin(), ::tolower);
 
-		if (whitelist.doesContain(proc.path) && verifyFileSignature(proc.path)  == ProcessEnumerator::SUCCESS) {
+		if (whitelist.doesContain(path) && getCachedSignature(path)  == ProcessEnumerator::SUCCESS) {
 			continue;
 		}
 		
@@ -80,21 +128,13 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		proc.directoryWritable = false;
 		proc.fileWritable = false;
 
-		ProcessEnumerator::fileVerification verify;
-		auto sigIt = signatureCache.find(proc.path);
-		if (sigIt != signatureCache.end()) {
-			verify = sigIt->second;
-		}
-		else {
-			verify = verifyFileSignature(proc.path);
-			signatureCache[proc.path] = verify;
-		}
+		ProcessEnumerator::fileVerification verify = getCachedSignature(path);
 
 		proc.certStatus = verify;
 
 		std::wstring directory;
 		try {
-			directory = std::filesystem::path(proc.path).parent_path().wstring();
+			directory = std::filesystem::path(path).parent_path().wstring();
 		}
 		catch (...) {
 			directory = L"";
@@ -102,14 +142,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 
 		bool dirWritable = false;
 		if (!directory.empty()) {
-			auto dirIt = directoryWritableCache.find(directory);
-			if (dirIt != directoryWritableCache.end()) {
-				dirWritable = dirIt->second;
-			}
-			else {
-				dirWritable = isDirectoryUserWritable(directory);
-				directoryWritableCache[directory] = dirWritable;
-			}
+			dirWritable = getCachedDirectory(directory);
 			proc.directoryWritable = dirWritable;
 			if (dirWritable) {
 				proc.suspicionReason.push_back(std::wstring(L"[!] Directory is user writable: ") + directory);
@@ -117,20 +150,8 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 			}
 		}
 
-		bool fileWritable = false;
-		auto fileIt = fileWritableCache.find(proc.path);
-		if (fileIt != fileWritableCache.end()) {
-			fileWritable = fileIt->second;
-		}
-		else {
-			std::wstring testPath = directory + L"\\.__writetest";
-			HANDLE hFile = CreateFileW(proc.path.c_str(), FILE_WRITE_DATA | FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-			fileWritable = (hFile != INVALID_HANDLE_VALUE);
+		bool fileWritable = getFileWritableCache(directory, path);
 
-			if (fileWritable)
-				CloseHandle(hFile);
-			fileWritableCache[proc.path] = fileWritable;
-		}
 		proc.fileWritable = fileWritable;
 		if (fileWritable) {
 			proc.suspicionReason.push_back(std::wstring(L"[!] File is user writable: ") + proc.path);
@@ -191,20 +212,6 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		}
 	}
 	return;
-}
-
-bool SignatureChecker::isDirectoryUserWritable(const std::wstring& filePath) {
-	std::wstring testFile = filePath + L"\\.writetets";
-	HANDLE hFile = CreateFileW(testFile.c_str(), GENERIC_WRITE,
-		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-		nullptr, CREATE_NEW, FILE_ATTRIBUTE_TEMPORARY |
-		FILE_FLAG_DELETE_ON_CLOSE, nullptr);
-
-	if (hFile == INVALID_HANDLE_VALUE) {
-		return false;
-	}
-	CloseHandle(hFile);
-	return true;
 }
 
 void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot) {
@@ -298,14 +305,13 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 }
 
 bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot) {
-	Whitelist whitelist;
 	HMODULE hMods[1024];
 	HANDLE hProcess;
 	DWORD cbNeeded;
 	unsigned int i;
 	ProcessEnumerator::fileVerification filerVer;
 
-	std::unordered_map<std::wstring, ProcessEnumerator::fileVerification> signatureCache;
+	
 
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION |
 		PROCESS_VM_READ, FALSE, pid);
@@ -322,29 +328,23 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 		for (i = 0; i < (cbNeeded / sizeof(HMODULE)); ++i) {
 			TCHAR szModName[MAX_PATH];
+			std::wstring lowerModName = szModName;
+			std::transform(lowerModName.begin(), lowerModName.end(), lowerModName.begin(), ::tolower);
 
 			if (GetModuleFileNameEx(hProcess, hMods[i], szModName,
 				sizeof(szModName) / sizeof(TCHAR))) {
 
-				if (whitelist.doesContain(szModName)) {
+				if (whitelist.doesContain(lowerModName)) {
 					continue;
 				}
 
-				bool relative = proc.isRelativePath(szModName);
-				bool suspicious = proc.isDLLPathSuspicious(szModName);
+				bool relative = proc.isRelativePath(lowerModName);
+				bool suspicious = proc.isDLLPathSuspicious(lowerModName);
 
-				
 
 				if (relative && suspicious) {
-					auto it = signatureCache.find(std::wstring(szModName));
 
-					if (it != signatureCache.end()) {
-						filerVer = it->second;
-					}
-					else {
-						filerVer = verifyFileSignature(std::wstring(szModName));
-						signatureCache[std::wstring(szModName)] = filerVer;
-					}
+					filerVer = getCachedSignature(lowerModName);
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
@@ -364,15 +364,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					continue;
 				}
 				else if (suspicious) {
-					auto it = signatureCache.find(std::wstring(szModName));
-
-					if (it != signatureCache.end()) {
-						filerVer = it->second;
-					}
-					else {
-						filerVer = verifyFileSignature(std::wstring(szModName));
-						signatureCache[std::wstring(szModName)] = filerVer;
-					}
+					filerVer = getCachedSignature(lowerModName);
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
@@ -392,15 +384,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					continue;
 				}
 				else if (relative) {
-					auto it = signatureCache.find(std::wstring(szModName));
-
-					if (it != signatureCache.end()) {
-						filerVer = it->second;
-					}
-					else {
-						filerVer = verifyFileSignature(std::wstring(szModName));
-						signatureCache[std::wstring(szModName)] = filerVer;
-					}
+					filerVer = getCachedSignature(lowerModName);
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
@@ -428,16 +412,20 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 	}
 
 	CloseHandle(hProcess);
-	return false;
+	return true;
 }
 
 std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
-	auto NtQueryInformationProcess = (
-		NtQueryInformationProcess_t)GetProcAddress(GetModuleHandleW(L"ntdll.dll"),
-			"NtQueryInformationProcess");
 
-	if (!NtQueryInformationProcess)
+	HMODULE hNtdll = GetModuleHandleW(L"ntdll.dll");
+	if (!hNtdll)
 		return L"";
+
+	auto NtQueryInformationProcess =
+		(NtQueryInformationProcess_t)GetProcAddress(hNtdll, "NtQueryInformationProcess");
+	if (!NtQueryInformationProcess) {
+		return L"";
+	}
 
 	PROCESS_BASIC_INFORMATION pbi{};
 	NTSTATUS status = NtQueryInformationProcess(hProcess, ProcessBasicInformation, &pbi, sizeof(pbi), nullptr);
