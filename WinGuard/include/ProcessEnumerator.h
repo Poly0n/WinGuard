@@ -6,7 +6,6 @@
 #include <vector>
 #include <unordered_map>
 #include <Psapi.h>
-#include <tchar.h>
 #include "Logger.h"
 
 #pragma comment(lib, "psapi.lib")
@@ -41,4 +40,5 @@ public:
 	void printSuspicious();
 private:
 };
+
 
