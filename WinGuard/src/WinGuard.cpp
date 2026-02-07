@@ -2,7 +2,6 @@
 #include <Windows.h>
 #include <thread>
 #include <atomic>
-#include <unordered_map>
 #include "ProcessEnumerator.h"
 #include "SignatureChecker.h"
 #include "Logger.h"
@@ -175,4 +174,5 @@ int main() {
     regWatcher.join();
 
     return 0;
+
 }
