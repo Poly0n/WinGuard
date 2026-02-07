@@ -4,9 +4,13 @@ A basic Windows security tool acting as an EDR (Endpoint Detection and Response)
 
 ## **Key Features**
   - *Verifies Running Processes and DLLs For Signature Abnormalities (No Signature, Tampered File, Untrusted Signature, etc.)*
+  - *Dumps Any Command Line Buffers That A Process May Try To Run* 
   - *Detecs Any Abnormal Parent Processses (Parent Spawning A Powershell, CMD, WScript Window)*
   - *Scans For Processes and DLLs Running From Abnormal Directories (%TEMP%, %APPDATA%, etc.)*
-  - *Detects Processes and DLLs Running That Are User-Writable*
+  - *Detects Processes, DLLs, and Directories Running That Are User-Writable*
+  - *Scans For Changes In The Registry For Persistance*
+  - *Ability To Log The Exact Time A Detection Occurs*
+  - *Ability To Whitelist Any App Using The .txt File*
 
 # Install
 ```bash
