@@ -144,6 +144,15 @@ void ClearConsole()
 	SetConsoleCursorPosition(hConsole, { 0,0 });
 }
 
+void printGraphic() {
+       std::cout << " __      __.___         ________                       .___   \n"
+           "/  \\    /  \\   | ____  /  _____/ __ _______ _______  __| _//\\      \n"
+           "\\   \\/\\/   /   |/    \\/   \\  ___|  |  \\__  \\_  __ \\/ __ |  \\/ \n"
+           " \\        /|   |   |  \\    \\_\\  \  |  // __ \\|  | \\/ /_/ |  /\\  \n"
+           "  \\__/\\  / |___|___|  /\______  /____/(____  /__|  \\____ |  \\/     \n"
+           "       \\/           \\/       \\/           \\/          \\/         \n";
+}
+
 int main() {
     std::cout << "\t\t\t\tAll suspicious activity is in the timed logfile.txt!" << std::endl;
     Sleep(3000);
@@ -152,7 +161,7 @@ int main() {
     std::thread regWatcher(RegistryWatcherThread);
 
     while (!quit) {
-
+		printGraphic();
         procEnum.collectProcesses();
         if (procEnum.processMap.empty()) {
             std::wcout << L"[!] No Processes Collected\n";
@@ -176,3 +185,4 @@ int main() {
     return 0;
 
 }
+
