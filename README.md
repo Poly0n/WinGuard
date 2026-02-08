@@ -46,6 +46,9 @@
 git clone https://github.com/Poly0n/WinGuard.git
 cd WinGuard cd WinGuard
 
-# Build Project
+# g++ Build
 g++ -DUNICODE -D_UNICODE -std=c++20 -O2 -Iincludes -o WinGuard src/*.cpp -lwintrust -lole32 -luuid
+
+# MSVC Build
+msbuild WinGuard.slnx /p:Configuration=Release /p:Platform=x64
 ```
