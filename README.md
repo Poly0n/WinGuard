@@ -1,18 +1,51 @@
-# WinGuard
+# **WinGuard**  ![Platform](https://img.shields.io/badge/platform-Windows-blue)  ![Language](https://img.shields.io/badge/language-C%2B%2B20-orange)
+> WinGuard is an educational / experimental EDR and is not intended to replace enterprise-grade security software.
 
-A basic Windows security tool acting as an EDR (Endpoint Detection and Response) to help monitor and log any suspicious processes or commands running on your PC.
+<b>Basic Windows EDR (Endpoint Detection and Response) To Help Monitor And Log Any Suspicious Processes Or Commands Running On Your PC.</b>
 
 ## **Key Features**
-  - *Verifies Running Processes and DLLs For Signature Abnormalities (No Signature, Tampered File, Untrusted Signature, etc.)*
-  - *Dumps Any Command Line Buffers That A Process May Try To Run* 
-  - *Detecs Any Abnormal Parent Processses (Parent Spawning A Powershell, CMD, WScript Window)*
-  - *Scans For Processes and DLLs Running From Abnormal Directories (%TEMP%, %APPDATA%, etc.)*
-  - *Detects Processes, DLLs, and Directories Running That Are User-Writable*
-  - *Scans For Changes In The Registry For Persistance*
-  - *Ability To Log The Exact Time A Detection Occurs*
-  - *Ability To Whitelist Any App Using The .txt File*
+### Process & Execution Monitoring
+  - Dumps any command line buffers that a process may try to run
+  - Detects any abnormal parent processes (spawning PowerShell, CMD, or WScript)
+  - Verifies running processes and DLLs for signature abnormalities (no signature, tampered file, untrusted signature, etc.)
+### File System Analysis
+  - Scans for processes and DLLs running from abnormal directories (%TEMP%, %APPDATA%, etc.)
+  - Detects processes, DLLs, and directories running that are user-writable
+### Persistence Detection
+  - Scans for changes in the Registry for persistence
+### Logging Capabilities
+  - Ability to log the exact time a detection occurs
+  - Ability to white-list any app using the *whitelist.txt* file
 
-# Install
+## **Example Detections**
+
+<p align="center">
+<img width="900" height="700" alt="Malware Spawning ugate.exe" src="https://github.com/user-attachments/assets/7da2d672-2ab6-45d8-8683-fa00131f00f8" />
+</p>
+<p align="center">
+<sub><b>Malware Spawning ugate.exe and Executing Malicious JavaScript Files</b></sub>
+</p>
+<p align="center">
+<img width="900" height="700" alt="2026-02-07 19_31_39-Greenshot" src="https://github.com/user-attachments/assets/556ed176-c089-406a-937b-f3ebb3e65d79" />
+</p>
+<p align="center">
+<sub><b>Malware Running Malicious DLLs and PYDs From AppData</b></sub>
+</p>
+
+## **Example Log**
+<p align="center">
+<img width="900" height="653" alt="Log File Of Malware Activity" src="https://github.com/user-attachments/assets/029a7d7f-e8a9-403d-8a77-1b2f2d9169bd" />
+</p>
+<p align="center">
+<sub><b>Log Of Malwares Malicious DLLs and PowerShell Commands</b></sub>
+</p>
+
+## Installation
 ```bash
+# Clone Repository
+git clone https://github.com/Poly0n/WinGuard.git
+cd WinGuard cd WinGuard
+
+# Build Project
 g++ -DUNICODE -D_UNICODE -std=c++20 -O2 -Iincludes -o WinGuard src/*.cpp -lwintrust -lole32 -luuid
 ```
