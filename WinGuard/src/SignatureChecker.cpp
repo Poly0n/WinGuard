@@ -167,7 +167,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		else if (verify == ProcessEnumerator::NO_SIGNATURE) {
 			proc.certStatus = ProcessEnumerator::NO_SIGNATURE;
 			proc.suspicionScore += 2;
-			proc.suspicionReason.push_back(std::wstring(L"[!] File has not signature:") + proc.name);
+			proc.suspicionReason.push_back(std::wstring(L"[!] File has no signature:") + proc.name);
 		}
 		else if (verify == ProcessEnumerator::TAMPERED) {
 			proc.certStatus = ProcessEnumerator::TAMPERED;
@@ -457,3 +457,4 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
+
