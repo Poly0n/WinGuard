@@ -133,7 +133,6 @@
     <ClInclude Include="include\SignatureChecker.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\Logger.cpp" />
     <ClCompile Include="src\ProcessEnumerator.cpp" />
     <ClCompile Include="src\SignatureChecker.cpp" />
     <ClCompile Include="src\WinGuard.cpp" />
@@ -143,3 +142,4 @@
   </ImportGroup>
 
 </Project>
+
