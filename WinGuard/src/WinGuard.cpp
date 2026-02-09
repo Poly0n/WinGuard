@@ -167,10 +167,6 @@ int main() {
             std::wcout << L"[!] No Processes Collected\n";
         }
 
-        for (auto& [pid, proc] : procEnum.processMap) {
-            proc.parentName = procEnum.getProcessName(proc.ppid);
-        }
-
         sigCheck.analyseProcessBehavior(procEnum.processMap);
         sigCheck.parentProcesses(procEnum.processMap);
         procEnum.printSuspicious();
@@ -185,4 +181,3 @@ int main() {
     return 0;
 
 }
-
