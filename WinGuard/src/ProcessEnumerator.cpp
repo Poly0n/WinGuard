@@ -28,29 +28,6 @@ void ProcessEnumerator::collectProcesses() {
 	return;
 }
 
-std::wstring ProcessEnumerator::getProcessName(DWORD pid) const {
-	HANDLE hSnapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
-	if (hSnapshot == INVALID_HANDLE_VALUE)
-		return {};
-
-	PROCESSENTRY32W pe;
-	pe.dwSize = sizeof(PROCESSENTRY32W);
-
-	if (Process32FirstW(hSnapshot, &pe)) {
-		do {
-			if (pe.th32ProcessID == pid) {
-				CloseHandle(hSnapshot);
-				return pe.szExeFile;
-			}
-
-		} while (Process32NextW(hSnapshot, &pe));
-	}
-
-	CloseHandle(hSnapshot);
-
-	return {};
-}
-
 std::wstring ProcessEnumerator::getPath(DWORD pid) const {
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
 
@@ -125,4 +102,5 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 	}
 
 	return false;
+
 }
