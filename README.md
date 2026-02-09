@@ -1,4 +1,6 @@
-# **WinGuard**  ![Platform](https://img.shields.io/badge/platform-Windows-blue)  ![Language](https://img.shields.io/badge/language-C%2B%2B20-orange)
+
+# <p align="center"><img width="582" height="119" alt="winguard_logo" src="https://github.com/user-attachments/assets/fc2fb2de-f743-4af6-acbb-34f69ef3bce8" /></p><p align="center">![Platform](https://img.shields.io/badge/platform-Windows-blue)  ![Language](https://img.shields.io/badge/language-C%2B%2B20-orange)</p>
+ 
 > WinGuard is an educational / experimental EDR and is not intended to replace enterprise-grade security software.
 
 <b>Basic Windows EDR (Endpoint Detection and Response) To Help Monitor And Log Any Suspicious Processes Or Commands Running On Your PC.</b>
