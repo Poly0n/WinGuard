@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <filesystem>
 
 enum LogLevel { DEBUG, INFO, WARNING, ERR, CRITICAL };
 
@@ -11,7 +12,7 @@ class Logger
 {
 public:
 	Logger(const std::wstring& filename) {
-		logFile.open(filename.c_str(), std::ios::app);
+		logFile.open(std::filesystem::path(filename), std::ios::app);
 		if (!logFile.is_open()) {
 			std::cerr << "Error opening log file." << std::endl;
 		}
@@ -23,10 +24,10 @@ public:
 		time_t now = time(nullptr);
 		struct tm buf;
 		if (localtime_s(&buf, &now) != 0) {
-			std::cerr << "Failed to get local time" << std::endl;
+			std::wcerr << "Failed to get local time" << std::endl;
 		}
-		char timestamp[20];
-		strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", &buf);
+		wchar_t timestamp[32];
+		wcsftime(timestamp, 32, L"%Y-%m-%d %H:%M:%S", &buf);
 		
 		std::wstringstream logEntry;
 		logEntry << L"[" << timestamp << L"] " << levelToString(level) << L": "
@@ -34,7 +35,10 @@ public:
 
 		if (logFile.is_open()) {
 			logFile << logEntry.str();
-			logFile.clear();
+			logFile.flush();
+		}
+		else {
+			std::wcout << "[!] Coudln't open logger" << std::endl;
 		}
 	}
 private:
