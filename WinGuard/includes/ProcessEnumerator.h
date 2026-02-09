@@ -21,7 +21,6 @@ public:
 	struct ProcessInformation {
 		DWORD pid = 0;
 		DWORD ppid = 0;
-		std::wstring parentName = L"";
 		std::wstring name = L"";
 		std::wstring path = L"";
 		fileVerification certStatus = UNKNOWN;
@@ -40,4 +39,5 @@ public:
 	void printSuspicious();
 private:
 };
+
 
