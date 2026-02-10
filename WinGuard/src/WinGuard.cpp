@@ -1,14 +1,13 @@
 #include <iostream>
 #include <Windows.h>
 #include <thread>
-#include <atomic>
 #include "ProcessEnumerator.h"
 #include "SignatureChecker.h"
 #include "Logger.h"
 
-std::atomic<bool> quit{ false };
-ProcessEnumerator procEnum;
+bool quit = false;
 SignatureChecker sigCheck;
+ProcessEnumerator procEnum;
 
 struct RegistryWatchKey {
     HKEY hive;
@@ -110,7 +109,10 @@ void RegistryWatcherThread()
                     std::wcout << L"[!] New startup entry detected in " << keyInfo.regKey.name
                         << L": " << name << L" -> " << data << std::endl;
 
-                    logger.log(WARNING, L"New startup entry detected: " + keyInfo.regKey.name + L" " + name + L" -> " + data);
+                    std::wstring logMessage = L"New startup entry detected: " + keyInfo.regKey.name + L" " + name + L" -> " + data;
+
+                    logger.log(WARNING, logMessage); 
+
                 }
             }
 
@@ -144,24 +146,30 @@ void ClearConsole()
 	SetConsoleCursorPosition(hConsole, { 0,0 });
 }
 
-void printGraphic() {
+
+
+void clearThread() {
+    while (!quit) {
+       ClearConsole();
        std::cout << " __      __.___         ________                       .___   \n"
            "/  \\    /  \\   | ____  /  _____/ __ _______ _______  __| _//\\      \n"
            "\\   \\/\\/   /   |/    \\/   \\  ___|  |  \\__  \\_  __ \\/ __ |  \\/ \n"
            " \\        /|   |   |  \\    \\_\\  \  |  // __ \\|  | \\/ /_/ |  /\\  \n"
            "  \\__/\\  / |___|___|  /\______  /____/(____  /__|  \\____ |  \\/     \n"
            "       \\/           \\/       \\/           \\/          \\/         \n";
+       std::this_thread::sleep_for(std::chrono::seconds(10));
+    }
 }
 
 int main() {
     std::cout << "\t\t\t\tAll suspicious activity is in the timed logfile.txt!" << std::endl;
     Sleep(3000);
-    ClearConsole();
 
+    std::thread consoleGraphics(clearThread);
     std::thread regWatcher(RegistryWatcherThread);
 
     while (!quit) {
-		printGraphic();
+
         procEnum.collectProcesses();
         if (procEnum.processMap.empty()) {
             std::wcout << L"[!] No Processes Collected\n";
@@ -172,12 +180,12 @@ int main() {
         procEnum.printSuspicious();
         procEnum.processMap.clear();
 
-        Sleep(2000);
-        ClearConsole();
+        Sleep(500);
     }
+
     quit = true;
     regWatcher.join();
+    consoleGraphics.join();
 
     return 0;
-
 }
