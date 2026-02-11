@@ -105,6 +105,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>C:\Users\adria\source\repos\WinGuard\WinGuard\nlohmann;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -120,7 +121,8 @@
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)includes</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\adria\source\repos\WinGuard\WinGuard\includes;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -128,18 +130,18 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="include\Logger.h" />
-    <ClInclude Include="include\ProcessEnumerator.h" />
-    <ClInclude Include="include\SignatureChecker.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ClCompile Include="src\ProcessEnumerator.cpp" />
     <ClCompile Include="src\SignatureChecker.cpp" />
     <ClCompile Include="src\WinGuard.cpp" />
   </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="includes\Logger.h" />
+    <ClInclude Include="includes\NT_API.h" />
+    <ClInclude Include="includes\ProcessEnumerator.h" />
+    <ClInclude Include="includes\SignatureChecker.h" />
+    <ClInclude Include="includes\Whitelist.h" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
-
 </Project>
-
