@@ -179,7 +179,6 @@ int main() {
         sigCheck.parentProcesses(procEnum.processMap);
         procEnum.printSuspicious();
         procEnum.processMap.clear();
-
         Sleep(500);
     }
 
