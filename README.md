@@ -54,3 +54,13 @@ g++ -DUNICODE -D_UNICODE -std=c++20 -O2 -Iincludes -o WinGuard src/*.cpp -lwintr
 # MSVC Build
 msbuild WinGuard.slnx /p:Configuration=Release /p:Platform=x64
 ```
+
+## **Updates**
+### Improved Performance
+- Uses NtQuerySystemInformation instead of CreateToolhelp32Snapshot
+- Improved caching system for reduced redundant scanning operations
+
+### Bugs
+- Added accurate parent-child process tracking
+- Fixed Command Line Buffers sometimes not getting logged
+- Improved scoring system to reduce false positives
