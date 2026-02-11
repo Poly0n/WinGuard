@@ -110,8 +110,7 @@ bool SignatureChecker::getFileWritableCache(const std::wstring& dir, const std::
 }
 
 void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot) {
-	
-	
+
 	for (auto& [pid, proc] : processSnapshot) {
 
 		if (proc.path.empty() || proc.path == L"UNKNOWN")
@@ -130,8 +129,6 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 
 		ProcessEnumerator::fileVerification verify = getCachedSignature(proc.path);
 
-		proc.certStatus = verify;
-
 		std::wstring directory;
 		try {
 			directory = std::filesystem::path(proc.path).parent_path().wstring();
@@ -146,7 +143,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 			proc.directoryWritable = dirWritable;
 			if (dirWritable) {
 				proc.suspicionReason.push_back(std::wstring(L"[!] Directory is user writable: ") + directory);
-				proc.suspicionScore += 2;
+				proc.suspicionScore += 1;
 			}
 		}
 
@@ -167,7 +164,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		else if (verify == ProcessEnumerator::NO_SIGNATURE) {
 			proc.certStatus = ProcessEnumerator::NO_SIGNATURE;
 			proc.suspicionScore += 2;
-			proc.suspicionReason.push_back(std::wstring(L"[!] File has no signature:") + proc.name);
+			proc.suspicionReason.push_back(std::wstring(L"[!] File has not signature:") + proc.name);
 		}
 		else if (verify == ProcessEnumerator::TAMPERED) {
 			proc.certStatus = ProcessEnumerator::TAMPERED;
@@ -217,6 +214,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot) {
 	std::unordered_map<DWORD, DWORD> topParentCache;
 	std::unordered_set<DWORD> visited;
+	Logger log(L"logfile.txt");
 	
 	for (auto& [pid, proc] : processSnapshot) {
 		
@@ -256,13 +254,14 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 
 			if (parent.name == L"powershell.exe" || parent.name == L"cmd.exe" || parent.name == L"wscript.exe") {
 				proc.suspicionScore += 3;
-				proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent: ") + parent.name);
+				proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent: ") + parent.name + L" From: " + first->second.name);
 				HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, parent.pid);
 				if (!hProcess) {
 					continue;
 				}
 
 				std::wstring commandLineArg = getCommandLineBuffer(hProcess);
+				log.log(WARNING, L"Command Line Argument: " + commandLineArg);
 				std::wcout << L"[!] " << parent.name << " Command Line Buffer:" << commandLineArg << std::endl;
 				parentIt->second.suspicionReason.push_back(L"[!] " + parent.name + L" Command Line Argument: " + commandLineArg);
 				CloseHandle(hProcess);
@@ -286,13 +285,15 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 
 		if (topParent.name == L"powershell.exe" || topParent.name == L"cmd.exe" || topParent.name == L"wscript.exe") {
 			proc.suspicionScore += 3;
-			proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious top-most parent: ") + topParent.name);
+			proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious top-most parent: ") + topParent.name + L" From: " + topProcIt->second.name);
 			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, topParent.pid);
 			if (!hProcess) {
 				continue;
 			}
 
+			
 			std::wstring commandLineArg = getCommandLineBuffer(hProcess);
+			log.log(WARNING, L"Command Line Argument: " + commandLineArg);
 			topParent.suspicionReason.push_back(L"[!] " + topParent.name + L" Command Line Argument: " + commandLineArg);
 			CloseHandle(hProcess);
 		}
@@ -328,15 +329,24 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 		for (i = 0; i < (cbNeeded / sizeof(HMODULE)); ++i) {
 			TCHAR szModName[MAX_PATH];
+			std::wstring moduleName(szModName);
 			std::wstring lowerModName = szModName;
 			std::transform(lowerModName.begin(), lowerModName.end(), lowerModName.begin(), ::tolower);
+
+			auto& moduleSet = moduleCache[pid];
+
+			if (moduleSet.find(moduleName) != moduleSet.end()) {
+				continue;
+			}
+
+			moduleCache[pid].emplace(moduleName);
 
 			if (GetModuleFileNameEx(hProcess, hMods[i], szModName,
 				sizeof(szModName) / sizeof(TCHAR))) {
 
 				if (whitelist.doesContain(lowerModName) || whitelist.doesContain(szModName)) {
 					continue;
-				}
+				}	
 
 				bool relative = proc.isRelativePath(szModName);
 				bool suspicious = proc.isDLLPathSuspicious(szModName);
@@ -457,4 +467,3 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
-
