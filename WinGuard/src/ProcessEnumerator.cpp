@@ -156,11 +156,15 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 		return false;
 	
 	if (path.find(L"\\Downloads\\") != std::wstring::npos || 
-		path.find(L"\\AppData\\Local\\Temp\\") != std::wstring::npos || 
-		path.find(L"\\AppData\\Roaming") != std::wstring::npos) {
-		
+	path.find(L"\\AppData\\Local\\Temp\\") != std::wstring::npos || 
+	path.find(L"\\AppData\\Roaming") != std::wstring::npos ||
+	path.find(L"\\Windows\\Temp") != std::wstring::npos || 
+	path.find(L"\\ProgramData\\") != std::wstring::npos || 
+	path.find(L"\\$Recycle.Bin\\") != std::wstring::npos) {
+	
 		return true;
 	}
 
 	return false;
 }
+
