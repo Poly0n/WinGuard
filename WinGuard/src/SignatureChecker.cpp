@@ -164,7 +164,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		else if (verify == ProcessEnumerator::NO_SIGNATURE) {
 			proc.certStatus = ProcessEnumerator::NO_SIGNATURE;
 			proc.suspicionScore += 2;
-			proc.suspicionReason.push_back(std::wstring(L"[!] File has not signature:") + proc.name);
+			proc.suspicionReason.push_back(std::wstring(L"[!] File has no signature:") + proc.name);
 		}
 		else if (verify == ProcessEnumerator::TAMPERED) {
 			proc.certStatus = ProcessEnumerator::TAMPERED;
@@ -369,7 +369,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + szModName);
 					}
 
-					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is extremely suspicous: ") + szModName);
+					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is extremely suspicious: ") + szModName);
 					ProcIt->second.suspicionScore += 4;
 					continue;
 				}
@@ -389,7 +389,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + szModName);
 					}
 
-					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is suspicous: ") + szModName);
+					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is suspicious: ") + szModName);
 					ProcIt->second.suspicionScore += 2;
 					continue;
 				}
@@ -467,3 +467,4 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
+
