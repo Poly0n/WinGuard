@@ -390,7 +390,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					}
 
 					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is suspicious: ") + szModName);
-					ProcIt->second.suspicionScore += 2;
+					ProcIt->second.suspicionScore += 1;
 					continue;
 				}
 				else if (relative) {
@@ -467,4 +467,5 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
+
 
