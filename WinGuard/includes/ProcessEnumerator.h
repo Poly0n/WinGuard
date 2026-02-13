@@ -53,10 +53,10 @@ public:
     std::wstring getPath(DWORD pid) const;
     bool isRelativePath(const std::wstring& path);
     bool isDLLPathSuspicious(const std::wstring& path);
-    bool isUserlandProcess(DWORD pid, const std::wstring& path);
-    bool commonlyAbusedModules(const std::wstring& modName, DWORD pid);
+    bool isPathUserLand(const std::wstring& modName);
+    bool isLOLBin(const std::wstring& path);
+    bool isCommandSuspicious(const std::wstring& command);
     void printSuspicious();
-private:
     DWORD64 CYCLE_COUNT = 0;
+private: 
 };
-
