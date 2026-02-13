@@ -1,6 +1,5 @@
 #pragma once
 #include "ProcessEnumerator.h"
-#include <unordered_set>
 #include <unordered_map>
 #include <WinTrust.h>
 #include <winternl.h>
@@ -36,4 +35,5 @@ private:
 	bool getModules(DWORD pid, ProcessEnumerator& proc, std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot);
 	bool getFileWritableCache(const std::wstring& dir, const std::wstring& path);
 	ProcessEnumerator::fileVerification getCachedSignature(const std::wstring& path);
+	std::wstring getExecutableDirectory();
 };
