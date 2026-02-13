@@ -292,7 +292,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 			}
 
 			if (parent.name == L"powershell.exe" || parent.name == L"cmd.exe" || parent.name == L"wscript.exe") {
-				proc.suspicionScore += 2;
+				proc.suspicionScore += 1;
 				proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent: ") + parent.name + L" From: " + first.name);
 
 				auto commandIt = commandCache.find(parent.pid);
@@ -343,8 +343,19 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 
 		auto& topParent = topProcIt->second;
 
-		if (topParent.name == L"powershell.exe" || topParent.name == L"cmd.exe" || topParent.name == L"wscript.exe") {
+		std::wstring topName = !topParent.name.empty() ? topParent.name : std::filesystem::path(topParent.path).filename().wstring();
+
+		if (procEnum.isLOLBin(first.path) && !topParent.path.empty() && procEnum.isPathUserLand(topParent.path)) {
+			if (procEnum.isDLLPathSuspicious(first.path)) {
+				proc.suspicionScore += 4;
+				proc.suspicionReason.push_back(std::wstring(L"[!] Possibly Malicious LOLBin Parent-Child Relationship: " + first.name + L"<-" + topName));
+			}
 			proc.suspicionScore += 2;
+			proc.suspicionReason.push_back(std::wstring(L"[!] Possible LOLBin Parent-Child Relationship: " + first.name + L"<-" + topName));
+		}
+
+		if (topParent.name == L"powershell.exe" || topParent.name == L"cmd.exe" || topParent.name == L"wscript.exe") {
+			proc.suspicionScore += 1;
 			proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious top-most parent: ") + topParent.name + L" From: " + topProcIt->second.name);
 			
 			auto commandIt = commandCache.find(topParent.pid);
@@ -392,6 +403,9 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 	DWORD cbNeeded;
 	unsigned int i;
 	ProcessEnumerator::fileVerification filerVer;
+
+
+	
 
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION |
 		PROCESS_VM_READ, FALSE, pid);
@@ -479,7 +493,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					filerVer = getCachedSignature(moduleName);
 
 					if (filerVer == ProcessEnumerator::SUCCESS) {
-						ProcIt->second.suspicionScore += 1;
+						ProcIt->second.suspicionScore += .5;
 						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Signed DLL Path Is Suspicious: ") + moduleName);
 					}
 
@@ -585,4 +599,3 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
-
