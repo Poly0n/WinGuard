@@ -48,7 +48,7 @@ void ProcessEnumerator::collectProcesses() {
 	auto* spi = reinterpret_cast<_MY_SYSTEM_PROCESS_INFORMATION*>(buffer.data());
 
 	while (true) {
-		DWORD_PTR pid = reinterpret_cast<DWORD_PTR>(spi->UniqueProcessId);
+		DWORD pid = static_cast<DWORD>(reinterpret_cast<ULONG_PTR>(spi->UniqueProcessId));
 		DWORD_PTR ppid = reinterpret_cast<DWORD_PTR>(spi->InheritedFromUniqueProcessId);
 
 		std::wstring name;
@@ -71,6 +71,7 @@ void ProcessEnumerator::collectProcesses() {
 		}
 		else {
 			it->second.cycleCounter = CYCLE_COUNT;
+			it->second.ppid = static_cast<DWORD>(ppid);
 		}
 
 		if (spi->NextEntryOffset == 0)
@@ -102,7 +103,7 @@ std::wstring ProcessEnumerator::getPath(DWORD pid) const {
 
 	if (!QueryFullProcessImageNameW(hProcess, 0, path, &size)) {
 		CloseHandle(hProcess);
-		return L"";
+		return L"UNKNOWN";
 	}
 
 	CloseHandle(hProcess);
@@ -126,7 +127,7 @@ void ProcessEnumerator::printSuspicious() {
 				std::wcout << "\t" << proc.suspicionReason[i] << std::endl;
 			}
 		}
-		else if (proc.suspicionScore > 4) {
+		else if (proc.suspicionScore >= 4) {
 			std::wcout << "[!] " << proc.name << " is a suspicious program" << std::endl;
 			for (size_t i = 0; i < proc.suspicionReason.size(); ++i) {
 				logger.log(WARNING, proc.suspicionReason[i]);
@@ -140,7 +141,7 @@ void ProcessEnumerator::printSuspicious() {
 
 bool ProcessEnumerator::isRelativePath(const std::wstring& path) {
 	if (path.empty()) 
-		return true;
+		return false;
 	
 	if (path.starts_with(L"\\\\"))
 		return false;
@@ -152,19 +153,58 @@ bool ProcessEnumerator::isRelativePath(const std::wstring& path) {
 }
 
 bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
-	if (path.empty())
+	std::wstring lower = path;
+	std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+	if (lower.empty())
 		return false;
 	
-	if (path.find(L"\\Downloads\\") != std::wstring::npos || 
-	path.find(L"\\AppData\\Local\\Temp\\") != std::wstring::npos || 
-	path.find(L"\\AppData\\Roaming") != std::wstring::npos ||
-	path.find(L"\\Windows\\Temp") != std::wstring::npos || 
-	path.find(L"\\ProgramData\\") != std::wstring::npos || 
-	path.find(L"\\$Recycle.Bin\\") != std::wstring::npos) {
-	
+	if (lower.find(L"\\downloads\\") != std::wstring::npos || 
+		lower.find(L"\\appdata\\local\\temp\\") != std::wstring::npos || 
+		lower.find(L"\\appdata\\roaming") != std::wstring::npos ||
+		lower.find(L"\\windows\\temp") != std::wstring::npos || 
+		lower.find(L"\\programdata\\") != std::wstring::npos ||  
+		lower.find(L"\\windows\\syswow64\\") != std::wstring::npos) {
+
 		return true;
 	}
 
 	return false;
 }
 
+bool ProcessEnumerator::isUserlandProcess(DWORD pid, const std::wstring& path) {
+	std::wstring lower = path;
+	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
+
+	if (pid <= 4)
+		return false;
+	if (lower.find(L"windows\\system32") != std::wstring::npos)
+		return false;
+	return true;
+}
+
+bool ProcessEnumerator::commonlyAbusedModules(const std::wstring& modName, DWORD pid) {
+
+	static const std::unordered_set<std::wstring> abusedDLLsList = {
+		L"ipsecsvc.dll",
+		L"rasmans.dll",
+		L"schedsvc.dll",
+		L"appxdeploymentserver.dll",
+		L"bcastdvruserservice.dll",
+		L"ngccredprov.dll",
+		L"updatepolicy.dll"
+	};
+
+	std::wstring filename = std::filesystem::path(modName).filename().wstring();
+
+	std::transform(filename.begin(), filename.end(),
+		filename.begin(), ::towlower);
+
+	if (abusedDLLsList.find(filename) != abusedDLLsList.end())
+	{
+		abusedDLLs[pid] = filename;
+		return true;
+	}
+
+	return false;
+}
