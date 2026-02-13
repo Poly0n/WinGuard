@@ -61,6 +61,7 @@ msbuild WinGuard.slnx /p:Configuration=Release /p:Platform=x64
 - Improved caching system for reduced redundant scanning operations
 - Improved DLL enumeration and scanning
 - Added security checks on any command line buffers that run to determine if they're malicious or not
+- Added rudimentary LOLBin detection with parent-child relationships
 
 ### Bugs
 - Added accurate parent-child process tracking
