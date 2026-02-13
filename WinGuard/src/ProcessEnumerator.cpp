@@ -1,6 +1,7 @@
 #include "ProcessEnumerator.h"
 
 DWORDLONG CYCLE_COUNT = 0;
+Logger logger(L"logfile.txt");
 
 NtQuerySystemInformation_t getNtQuerySystemInformation() {
 	static NtQuerySystemInformation_t p =
@@ -48,7 +49,7 @@ void ProcessEnumerator::collectProcesses() {
 	auto* spi = reinterpret_cast<_MY_SYSTEM_PROCESS_INFORMATION*>(buffer.data());
 
 	while (true) {
-		DWORD pid = static_cast<DWORD>(reinterpret_cast<ULONG_PTR>(spi->UniqueProcessId));
+		DWORD pid = static_cast<DWORD>(reinterpret_cast<uintptr_t>(spi->UniqueProcessId));
 		DWORD_PTR ppid = reinterpret_cast<DWORD_PTR>(spi->InheritedFromUniqueProcessId);
 
 		std::wstring name;
@@ -111,7 +112,6 @@ std::wstring ProcessEnumerator::getPath(DWORD pid) const {
 }
 
 void ProcessEnumerator::printSuspicious() {
-	Logger logger(L"logfile.txt");
 	for (auto& [pid, proc] : processMap) {
 		if (proc.suspicionScore > 8) {
 			std::wcout << "[!] " << proc.name << " is a malicious program" << std::endl;
@@ -146,7 +146,7 @@ bool ProcessEnumerator::isRelativePath(const std::wstring& path) {
 	if (path.starts_with(L"\\\\"))
 		return false;
 
-	if (path.size() > 2 && path[1] == L':' && path[2] == L'\\')
+	if (path.size() > 3 && path[1] == L':' && path[2] == L'\\')
 		return false;
 
 	return true;
@@ -154,17 +154,17 @@ bool ProcessEnumerator::isRelativePath(const std::wstring& path) {
 
 bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 	std::wstring lower = path;
-	std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
 
 	if (lower.empty())
 		return false;
 	
 	if (lower.find(L"\\downloads\\") != std::wstring::npos || 
-		lower.find(L"\\appdata\\local\\temp\\") != std::wstring::npos || 
-		lower.find(L"\\appdata\\roaming") != std::wstring::npos ||
-		lower.find(L"\\windows\\temp") != std::wstring::npos || 
+		lower.find(L"\\appdata\\") != std::wstring::npos || 
+		lower.find(L"\\temp\\") != std::wstring::npos ||
+		lower.find(L"\\windows\\temp\\") != std::wstring::npos || 
 		lower.find(L"\\programdata\\") != std::wstring::npos ||  
-		lower.find(L"\\windows\\syswow64\\") != std::wstring::npos) {
+		lower.find(L"\\users\\public\\") != std::wstring::npos) {
 
 		return true;
 	}
@@ -172,38 +172,67 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 	return false;
 }
 
-bool ProcessEnumerator::isUserlandProcess(DWORD pid, const std::wstring& path) {
-	std::wstring lower = path;
+bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
+	if (modName.empty())
+		return false;
+	
+	std::wstring lower = modName;
 	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
 
-	if (pid <= 4)
+	if (lower.starts_with(L"c:\\windows\\system32\\") || 
+		lower.find(L"\\program files\\") != std::wstring::npos || 
+		lower.find(L"\\windows\\syswow64\\") != std::wstring::npos || 
+		lower.find(L"\\program files (x86)\\") != std::wstring::npos) {
 		return false;
-	if (lower.find(L"windows\\system32") != std::wstring::npos)
-		return false;
+	}
+
 	return true;
 }
 
-bool ProcessEnumerator::commonlyAbusedModules(const std::wstring& modName, DWORD pid) {
+bool ProcessEnumerator::isLOLBin(const std::wstring& path) {
+	std::wstring filename = std::filesystem::path(path).filename().wstring();
 
-	static const std::unordered_set<std::wstring> abusedDLLsList = {
-		L"ipsecsvc.dll",
-		L"rasmans.dll",
-		L"schedsvc.dll",
-		L"appxdeploymentserver.dll",
-		L"bcastdvruserservice.dll",
-		L"ngccredprov.dll",
-		L"updatepolicy.dll"
+	std::transform(filename.begin(), filename.end(), filename.begin(), ::towlower);
+
+	static const std::unordered_set<std::wstring> lolbins = {
+		L"rundll32.exe",
+		L"mshta.exe",
+		L"regsvr32.exe",
+		L"wmic.exe",
+		L"certutil.exe",
+		L"installutil.exe",
+		L"msbuild.exe",
+		L"cscript.exe",
+		L"schtasks.exe",
+		L"bitsadmin.exe"
 	};
 
-	std::wstring filename = std::filesystem::path(modName).filename().wstring();
+	return lolbins.contains(filename);
+}
 
-	std::transform(filename.begin(), filename.end(),
-		filename.begin(), ::towlower);
+bool ProcessEnumerator::isCommandSuspicious(const std::wstring& command) {
 
-	if (abusedDLLsList.find(filename) != abusedDLLsList.end())
-	{
-		abusedDLLs[pid] = filename;
-		return true;
+	std::wstring lower = command;
+	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
+	
+	static const std::vector<std::wstring> flags = {
+		L"-enc",
+		L"-encodedcommand",
+		L"-nop",
+		L"-w hidden",
+		L"-executionpolicy bypass",
+		L"iex(",
+		L"downloadstring",
+		L"cmd /c powershell",
+		L"certutil -decode",
+		L"bitsadmin",
+		L"mshta http",
+	};
+
+	for (auto& token : flags) {
+		if (lower.find(token) != std::wstring::npos) {
+			return true;
+		}
 	}
 
 	return false;
