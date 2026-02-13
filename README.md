@@ -60,8 +60,16 @@ msbuild WinGuard.slnx /p:Configuration=Release /p:Platform=x64
 - Uses NtQuerySystemInformation instead of CreateToolhelp32Snapshot
 - Improved caching system for reduced redundant scanning operations
 - Improved DLL enumeration and scanning
+- Added security checks on any command line buffers that run to determine if they're malicious or not
 
 ### Bugs
 - Added accurate parent-child process tracking
 - Fixed Command Line Buffers sometimes not getting logged
 - Improved scoring system to reduce false positives
+
+## **Disclaimer**
+When running you will most likely get a couple false positives when starting, due to things like OneDrive or WinGuard with their funky DLLs or directories. If that happens put their full file path on the whitelist.txt.
+```bash
+# Example
+C:\Users\Bobby\AppData\Local\Microsoft\OneDrive\22.007.0112.0002\FileCoAuth.exe
+```
