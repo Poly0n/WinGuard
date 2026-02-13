@@ -11,7 +11,7 @@ ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const 
 	WINTRUST_DATA trustData{};
 	trustData.cbStruct = sizeof(WINTRUST_DATA);
 	trustData.dwUIChoice = WTD_UI_NONE;
-	trustData.fdwRevocationChecks = WTD_REVOKE_NONE;
+	trustData.fdwRevocationChecks = WTD_REVOKE_WHOLECHAIN;
 	trustData.dwUnionChoice = WTD_CHOICE_FILE;
 	trustData.dwStateAction = WTD_STATEACTION_VERIFY;
 	trustData.pFile = &fileInfo;
@@ -27,34 +27,24 @@ ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const 
 	switch (status) {
 	case ERROR_SUCCESS:
 		return ProcessEnumerator::SUCCESS;
-		break;
 	case TRUST_E_NOSIGNATURE:
 		return ProcessEnumerator::NO_SIGNATURE;
-		break;
 	case TRUST_E_BAD_DIGEST:
 		return ProcessEnumerator::TAMPERED;
-		break;
 	case CERT_E_UNTRUSTEDROOT:
 		return ProcessEnumerator::UNTRUSTED_SIGNER;
-		break;
 	case CERT_E_REVOKED:
 		return ProcessEnumerator::REVOKED;
-		break;
 	case CERT_E_EXPIRED:
 		return ProcessEnumerator::EXPIRED;
-		break;
 	case TRUST_E_EXPLICIT_DISTRUST:
 		return ProcessEnumerator::ADMIN;
-		break;
 	case CRYPT_E_SECURITY_SETTINGS:
 		return ProcessEnumerator::POLICY_BLOCK;
-		break;
 	case CERT_E_CHAINING:
 		return ProcessEnumerator::CHAIN_FAIL;
-		break;
 	default:
 		return ProcessEnumerator::UNKNOWN;
-		break;
 	}
 }
 
@@ -94,17 +84,21 @@ bool SignatureChecker::getCachedDirectory(const std::wstring& dir) {
 	return result;
 }
 
-bool SignatureChecker::getFileWritableCache(const std::wstring& dir, const std::wstring& path) {
+bool SignatureChecker::getFileWritableCache(const std::wstring& path) {
 
 	auto it = fileWritableCache.find(path);
 	if (it != fileWritableCache.end())
 		return it->second;
 
 	HANDLE hFile = CreateFileW(path.c_str(), FILE_WRITE_DATA | FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
-	auto result = (hFile != INVALID_HANDLE_VALUE);
-	fileWritableCache[path] = result;
+	
+	bool result = (hFile != INVALID_HANDLE_VALUE);
 
-	CloseHandle(hFile);
+	if (result) {
+		CloseHandle(hFile);
+	}
+
+	fileWritableCache[path] = result;
 
 	return result;
 }
@@ -126,7 +120,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 			continue;
 
 		std::wstring path = proc.path;
-		std::transform(path.begin(), path.end(), path.begin(), ::tolower);
+		std::transform(path.begin(), path.end(), path.begin(), ::towlower);
 
 		if (whitelist.doesContain(proc.path) || whitelist.doesContain(path)) {
 			continue;
@@ -135,6 +129,8 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		proc.certStatus = ProcessEnumerator::UNKNOWN;
 		proc.directoryWritable = false;
 		proc.fileWritable = false;
+		proc.suspicionScore = 0;
+		proc.suspicionReason = {};
 
 		ProcessEnumerator::fileVerification verify = getCachedSignature(proc.path);
 
@@ -147,7 +143,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		}
 
 		bool dirWritable = false;
-		bool fileWritable = getFileWritableCache(directory, proc.path);
+		bool fileWritable = getFileWritableCache(proc.path);
 		bool suspiciousPath = procEnum.isDLLPathSuspicious(proc.path);
 		proc.fileWritable = fileWritable;
 
@@ -167,7 +163,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 			proc.suspicionScore += 1;
 		}
 		
-		if (procEnum.isDLLPathSuspicious(proc.path)) {
+		if (suspiciousPath) {
 			proc.suspicionReason.push_back(std::wstring(L"[!] Directory is Suspicious: ") + proc.path);
 			proc.suspicionScore += 2;
 		}
@@ -198,7 +194,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 			proc.suspicionScore += 3;
 			proc.suspicionReason.push_back(std::wstring(L"[!] File signature was revoked: ") + proc.name);
 		}
-		else if (verify == ProcessEnumerator::EXPIRED) {;
+		else if (verify == ProcessEnumerator::EXPIRED) {
 			proc.certStatus = ProcessEnumerator::EXPIRED;
 			proc.suspicionScore += 2;
 			proc.suspicionReason.push_back(std::wstring(L"[!] File signature has expired: ") + proc.name);
@@ -266,28 +262,67 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 		if (proc.ppid == 0)
 			continue;
 
-		auto first = processSnapshot.find(pid);
+		auto& first = proc;
+		std::wstring commandLineArg;
 
-		if (first == processSnapshot.end())
-			continue;
-
-		auto parentIt = processSnapshot.find(first->second.ppid);
+		auto parentIt = processSnapshot.find(first.ppid);
 		if (parentIt != processSnapshot.end()) {
-			const auto& parent = parentIt->second;
+			auto& parent = parentIt->second;
+
+			std::wstring parentName = !parent.name.empty()
+				? parent.name
+				: std::filesystem::path(parent.path).filename().wstring();
+
+
+			if (procEnum.isLOLBin(first.path) && !parent.path.empty() && procEnum.isPathUserLand(parent.path)) {
+				if (procEnum.isDLLPathSuspicious(first.path)) {
+					proc.suspicionScore += 4;
+					proc.suspicionReason.push_back(std::wstring(L"[!] Possibly Malicious LOLBin Parent-Child Relationship: " + first.name + L"<-" + parentName));
+				}
+				proc.suspicionScore += 2;
+				proc.suspicionReason.push_back(std::wstring(L"[!] Possible LOLBin Parent-Child Relationship: " + first.name + L"<-" + parentName));
+			}
+
+			if (procEnum.isPathUserLand(first.path) && !procEnum.isPathUserLand(parent.path)) {
+				if (procEnum.isDLLPathSuspicious(parent.path)) {
+					proc.suspicionScore += 1;
+					proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent-Child Relationship: " + parentName + L"->" + first.name));
+				}
+
+			}
 
 			if (parent.name == L"powershell.exe" || parent.name == L"cmd.exe" || parent.name == L"wscript.exe") {
 				proc.suspicionScore += 2;
-				proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent: ") + parent.name + L" From: " + first->second.name);
-				HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, parent.pid);
-				if (!hProcess) {
-					continue;
+				proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent: ") + parent.name + L" From: " + first.name);
+
+				auto commandIt = commandCache.find(parent.pid);
+				if (commandIt == commandCache.end()) {
+					HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, parent.pid);
+					if (!hProcess) {
+						continue;
+					}
+
+					commandLineArg = getCommandLineBuffer(hProcess);
+					commandCache[parent.pid] = commandLineArg;
+					CloseHandle(hProcess);
+
+				}
+				else {
+					commandLineArg = commandIt->second;
 				}
 
-				std::wstring commandLineArg = getCommandLineBuffer(hProcess);
-				log.log(WARNING, L"Command Line Argument: " + commandLineArg);
-				std::wcout << L"[!] " << parent.name << " Command Line Buffer:" << commandLineArg << std::endl;
-				parentIt->second.suspicionReason.push_back(L"[!] " + parent.name + L" Command Line Argument: " + commandLineArg);
-				CloseHandle(hProcess);
+				if (procEnum.isCommandSuspicious(commandLineArg)) {
+					log.log(CRITICAL, L"[!] Possible malicious command execution: " + commandLineArg);
+					std::wcout << L"[!] " << parent.name << " Malicious Command Line Buffer:" << commandLineArg << std::endl;
+					parent.suspicionReason.push_back(std::wstring(L"[!] Possible malicious command execution: " + commandLineArg));
+					parent.suspicionScore += 2;
+				}
+				else {
+					log.log(WARNING, L"Command Line Argument: " + commandLineArg);
+					std::wcout << L"[!] " << parent.name << " Command Line Buffer:" << commandLineArg << std::endl;
+					parent.suspicionReason.push_back(L"[!] " + parent.name + L" Command Line Argument: " + commandLineArg);
+				}
+
 			}
 
 			if (parent.certStatus == ProcessEnumerator::REVOKED 
@@ -311,16 +346,35 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 		if (topParent.name == L"powershell.exe" || topParent.name == L"cmd.exe" || topParent.name == L"wscript.exe") {
 			proc.suspicionScore += 2;
 			proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious top-most parent: ") + topParent.name + L" From: " + topProcIt->second.name);
-			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, topParent.pid);
-			if (!hProcess) {
-				continue;
+			
+			auto commandIt = commandCache.find(topParent.pid);
+
+			if (commandIt == commandCache.end()) {
+				HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, topParent.pid);
+				if (!hProcess) {
+					continue;
+				}
+
+				std::wstring commandLineArg = getCommandLineBuffer(hProcess);
+				commandCache[topParent.pid] = commandLineArg;
+				CloseHandle(hProcess);
+			}
+			else {
+				commandLineArg = commandIt->second;
+			}
+			
+			if (procEnum.isCommandSuspicious(commandLineArg)) {
+				log.log(CRITICAL, L"[!] Possible malicious command execution: " + commandLineArg);
+				std::wcout << L"[!] " << topParent.name << " Malicious Command Line Buffer:" << commandLineArg << std::endl;
+				topParent.suspicionReason.push_back(std::wstring(L"[!] Possible malicious command execution: " + commandLineArg));
+				topParent.suspicionScore += 2;
+			}
+			else {
+				log.log(WARNING, L"Command Line Argument: " + commandLineArg);
+				std::wcout << L"[!] " << topParent.name << " Command Line Buffer:" << commandLineArg << std::endl;
+				topParent.suspicionReason.push_back(L"[!] " + topParent.name + L" Command Line Argument: " + commandLineArg);
 			}
 
-			
-			std::wstring commandLineArg = getCommandLineBuffer(hProcess);
-			log.log(WARNING, L"Command Line Argument: " + commandLineArg);
-			topParent.suspicionReason.push_back(L"[!] " + topParent.name + L" Command Line Argument: " + commandLineArg);
-			CloseHandle(hProcess);
 		}
 
 		if (topParent.certStatus == ProcessEnumerator::REVOKED
@@ -382,20 +436,24 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					continue;
 				}
 
-				bool suspiciousDLLName = proc.commonlyAbusedModules(moduleName, pid);
 				bool relative = proc.isRelativePath(moduleName);
 				bool suspicious = proc.isDLLPathSuspicious(moduleName);
+				bool userland = proc.isPathUserLand(moduleName);
 
-				if (suspiciousDLLName) {
-					if (proc.isUserlandProcess(pid, ProcIt->second.path)) {
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Contains Commonly Abused DLL In System Process: ") + szModName);
-						ProcIt->second.suspicionScore += 2;
-					}
-					else {
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Contains Commonly Abused DLL: ") + szModName);
-						ProcIt->second.suspicionScore += 1;
-					}
-					
+				std::wstring moduleDir;
+
+				try {
+					moduleDir = std::filesystem::path(moduleName).parent_path().wstring();
+				}
+				catch (...) {
+					moduleDir = L"";
+				}
+
+				bool writableDir = !moduleDir.empty() && getCachedDirectory(moduleDir);
+
+				if (userland && writableDir) {
+					ProcIt->second.suspicionScore += 2;
+					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Loaded in Writable Directory in Userland: ") + moduleName);
 				}
 
 				if (relative && suspicious) {
@@ -530,4 +588,3 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
-
