@@ -30,7 +30,7 @@ void RegistryWatcherThread()
         HKEY hKey;
         HANDLE hEvent;
         RegistryWatchKey regKey;
-        std::unordered_map<std::wstring, std::wstring> values; // snapshot of name -> data
+        std::unordered_map<std::wstring, std::wstring> values;
     };
 
     std::vector<KeyInfo> watchKeys;
@@ -71,7 +71,6 @@ void RegistryWatcherThread()
         }
     }
 
-    // Main loop
     while (!quit) {
         if (watchKeys.empty()) {
             Sleep(1000);
@@ -162,6 +161,7 @@ void clearThread() {
 }
 
 int main() {
+
     std::cout << "\t\t\t\tAll suspicious activity is in the timed logfile.txt!" << std::endl;
     Sleep(3000);
 
@@ -179,6 +179,7 @@ int main() {
         sigCheck.parentProcesses(procEnum.processMap);
         procEnum.printSuspicious();
         procEnum.processMap.clear();
+        procEnum.CYCLE_COUNT = 0;
         Sleep(500);
     }
 
