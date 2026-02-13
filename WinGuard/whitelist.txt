@@ -1,4 +1,5 @@
-Add the path to whatever EXE or DLL file you need whitelisted
+Add the path to whatever EXE or DLL file you need whitelisted.
+WinGuard may sometimes flag itself, so if need be whitelist the process.
 
 For Example:
 C:\Users\Bobby\AppData\Local\Temp\.net\Cloudflare WARP\wrIx_D115JrYGH6Z2z8JE6C2J8cOlH0=\PresentationNative_cor3.dll
