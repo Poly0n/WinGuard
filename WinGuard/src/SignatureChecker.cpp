@@ -276,7 +276,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 			const auto& parent = parentIt->second;
 
 			if (parent.name == L"powershell.exe" || parent.name == L"cmd.exe" || parent.name == L"wscript.exe") {
-				proc.suspicionScore += 3;
+				proc.suspicionScore += 2;
 				proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious Parent: ") + parent.name + L" From: " + first->second.name);
 				HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, parent.pid);
 				if (!hProcess) {
@@ -293,7 +293,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 			if (parent.certStatus == ProcessEnumerator::REVOKED 
 				|| parent.certStatus == ProcessEnumerator::UNTRUSTED_SIGNER 
 				|| parent.certStatus == ProcessEnumerator::ADMIN) {
-				proc.suspicionScore += 5;
+				proc.suspicionScore += 4;
 				proc.suspicionReason.push_back(std::wstring(L"[!] Untrusted Parent Signature: ") + parent.name);
 			}
 		}
@@ -309,7 +309,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 		auto& topParent = topProcIt->second;
 
 		if (topParent.name == L"powershell.exe" || topParent.name == L"cmd.exe" || topParent.name == L"wscript.exe") {
-			proc.suspicionScore += 3;
+			proc.suspicionScore += 2;
 			proc.suspicionReason.push_back(std::wstring(L"[!] Suspicious top-most parent: ") + topParent.name + L" From: " + topProcIt->second.name);
 			HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, topParent.pid);
 			if (!hProcess) {
@@ -326,7 +326,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 		if (topParent.certStatus == ProcessEnumerator::REVOKED
 			|| topParent.certStatus == ProcessEnumerator::UNTRUSTED_SIGNER 
 			|| topParent.certStatus == ProcessEnumerator::ADMIN) {
-			proc.suspicionScore += 5;
+			proc.suspicionScore += 4;
 			proc.suspicionReason.push_back(std::wstring(L"[!] Untrusted top-most parent signature: ") + topParent.name);
 		}
 	}
@@ -530,3 +530,4 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
+
