@@ -127,7 +127,7 @@ void ProcessEnumerator::printSuspicious() {
 				std::wcout << "\t" << proc.suspicionReason[i] << std::endl;
 			}
 		}
-		else if (proc.suspicionScore >= 4) {
+		else if (proc.suspicionScore > 4) {
 			std::wcout << "[!] " << proc.name << " is a suspicious program" << std::endl;
 			for (size_t i = 0; i < proc.suspicionReason.size(); ++i) {
 				logger.log(WARNING, proc.suspicionReason[i]);
@@ -237,3 +237,4 @@ bool ProcessEnumerator::isCommandSuspicious(const std::wstring& command) {
 
 	return false;
 }
+
