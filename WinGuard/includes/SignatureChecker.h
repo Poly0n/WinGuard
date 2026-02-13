@@ -28,12 +28,13 @@ private:
 	std::unordered_map<std::wstring, bool> directoryWritableCache;
 	std::unordered_map<std::wstring, bool> fileWritableCache;
 	std::unordered_map<DWORD, std::unordered_set<std::wstring>> moduleCache;
+	std::unordered_map<DWORD, std::wstring> commandCache;
 	ProcessEnumerator::fileVerification verifyFileSignature(const std::wstring& filePath);
 	std::wstring getCommandLineBuffer(HANDLE hProcess);
 	bool getCachedDirectory(const std::wstring& dir);
 	bool isDirectoryUserWritable(const std::wstring& filePath);
 	bool getModules(DWORD pid, ProcessEnumerator& proc, std::unordered_map<DWORD, ProcessEnumerator::ProcessInformation>& processSnapshot);
-	bool getFileWritableCache(const std::wstring& dir, const std::wstring& path);
+	bool getFileWritableCache(const std::wstring& path);
 	ProcessEnumerator::fileVerification getCachedSignature(const std::wstring& path);
 	std::wstring getExecutableDirectory();
 };
