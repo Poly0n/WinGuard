@@ -6,6 +6,8 @@
 #include <vector>
 #include <unordered_map>
 #include <unordered_set>
+#include <algorithm>
+#include <cwctype>
 #include <filesystem>
 #include <Psapi.h>
 #include "Logger.h"
@@ -57,3 +59,4 @@ public:
 private:
     DWORD64 CYCLE_COUNT = 0;
 };
+
