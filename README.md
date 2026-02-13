@@ -59,6 +59,7 @@ msbuild WinGuard.slnx /p:Configuration=Release /p:Platform=x64
 ### Improved Performance
 - Uses NtQuerySystemInformation instead of CreateToolhelp32Snapshot
 - Improved caching system for reduced redundant scanning operations
+- Improved DLL enumeration and scanning
 
 ### Bugs
 - Added accurate parent-child process tracking
