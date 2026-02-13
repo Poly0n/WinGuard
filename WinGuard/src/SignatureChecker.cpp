@@ -1,6 +1,5 @@
 #include "SignatureChecker.h"
 
-
 ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const std::wstring& filePath) {
 	WINTRUST_FILE_INFO fileInfo{};
 	fileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
@@ -222,8 +221,7 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		}
 
 	}
-
-
+	
 	return;
 }
 
@@ -403,9 +401,6 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 	DWORD cbNeeded;
 	unsigned int i;
 	ProcessEnumerator::fileVerification filerVer;
-
-
-	
 
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION |
 		PROCESS_VM_READ, FALSE, pid);
@@ -599,3 +594,4 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	}
 	return commandLine;
 }
+
