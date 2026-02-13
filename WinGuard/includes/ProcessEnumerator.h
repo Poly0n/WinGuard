@@ -5,6 +5,8 @@
 #include <TlHelp32.h>
 #include <vector>
 #include <unordered_map>
+#include <unordered_set>
+#include <filesystem>
 #include <Psapi.h>
 #include "Logger.h"
 #include "NT_API.h"
@@ -37,16 +39,20 @@ public:
         fileVerification certStatus = UNKNOWN;
         bool directoryWritable = false;
         bool fileWritable = false;
-        int suspicionScore = 0;
+        double suspicionScore = 0;
         DWORDLONG cycleCounter = 0;
         std::vector<std::wstring> suspicionReason = {};
     };
 
     std::unordered_map<DWORD, ProcessInformation> processMap;
+    std::unordered_map<DWORD, std::wstring> abusedDLLs;
+
     void collectProcesses();
     std::wstring getPath(DWORD pid) const;
     bool isRelativePath(const std::wstring& path);
     bool isDLLPathSuspicious(const std::wstring& path);
+    bool isUserlandProcess(DWORD pid, const std::wstring& path);
+    bool commonlyAbusedModules(const std::wstring& modName, DWORD pid);
     void printSuspicious();
 private:
     DWORD64 CYCLE_COUNT = 0;
