@@ -10,6 +10,7 @@
 #include <cwctype>
 #include <filesystem>
 #include <Psapi.h>
+#include <ShlObj_core.h>
 #include "Logger.h"
 #include "NT_API.h"
 
@@ -51,6 +52,7 @@ public:
 
     void collectProcesses();
     std::wstring getPath(DWORD pid) const;
+    std::wstring getKnownFolder(REFKNOWNFOLDERID folderId);
     bool isRelativePath(const std::wstring& path);
     bool isDLLPathSuspicious(const std::wstring& path);
     bool isPathUserLand(const std::wstring& modName);
