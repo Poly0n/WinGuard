@@ -158,31 +158,60 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 
 	if (lower.empty())
 		return false;
-	
-	if (lower.find(L"\\downloads\\") != std::wstring::npos || 
-		lower.find(L"\\appdata\\") != std::wstring::npos || 
-		lower.find(L"\\temp\\") != std::wstring::npos ||
-		lower.find(L"\\windows\\temp\\") != std::wstring::npos || 
-		lower.find(L"\\programdata\\") != std::wstring::npos ||  
-		lower.find(L"\\users\\public\\") != std::wstring::npos) {
 
-		return true;
+	std::filesystem::path p(lower);
+
+	static const std::vector<std::wstring>susPaths = {
+		L"temp",
+		L"appdata",
+		L"downloads",
+		L"programdata",
+		L"public"
+	};
+
+	for (const auto& part : p) {
+		for (const auto& suspect : susPaths) {
+			if (_wcsicmp(part.c_str(), suspect.c_str()) == 0) {
+				return true;
+			}
+
+		}
 	}
 
 	return false;
 }
 
+std::wstring ProcessEnumerator::getKnownFolder(REFKNOWNFOLDERID folderId) {
+	PWSTR path = nullptr;
+	std::wstring result;
+
+	if (SUCCEEDED(SHGetKnownFolderPath(folderId, KF_FLAG_DEFAULT, NULL, &path))) {
+		result = path;
+		CoTaskMemFree(path);
+	}
+
+	return result;
+}
+
+
 bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
 	if (modName.empty())
 		return false;
 	
-	std::wstring lower = modName;
-	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
+	std::filesystem::path p = std::filesystem::weakly_canonical(modName);
 
-	if (lower.starts_with(L"c:\\windows\\system32\\") || 
-		lower.find(L"\\program files\\") != std::wstring::npos || 
-		lower.find(L"\\windows\\syswow64\\") != std::wstring::npos || 
-		lower.find(L"\\program files (x86)\\") != std::wstring::npos) {
+	std::filesystem::path windowsDir = getKnownFolder(FOLDERID_Windows);
+	std::filesystem::path programFiles = getKnownFolder(FOLDERID_ProgramFiles);
+	std::filesystem::path programFilesX86 = getKnownFolder(FOLDERID_ProgramFilesX86);
+	std::filesystem::path system32 = getKnownFolder(FOLDERID_System);
+	std::filesystem::path systemX86 = getKnownFolder(FOLDERID_SystemX86);
+
+
+	if (p.string().starts_with(windowsDir.string()) ||
+		p.string().starts_with(programFiles.string()) ||
+		p.string().starts_with(programFilesX86.string()) ||
+		p.string().starts_with(system32.string()) || 
+		p.string().starts_with(systemX86.string())) {
 		return false;
 	}
 
