@@ -16,11 +16,11 @@
   - Detects processes, DLLs, and directories running that are user-writable
 ### Persistence Detection
   - Monitors common autorun and persistence registry keys
+### Memory Scans
+  - Scans flagged processes for private memory allocations that have RWX permissions
 ### Logging Capabilities
   - Ability to log the exact time a detection occurs
   - Ability to white-list any app using the *whitelist.txt* file
-### Memory Scans
-  - Scans flagged processes for private memory allocations that have RWX permissions
 
 ## **Example Detections**
 
