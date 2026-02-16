@@ -10,7 +10,7 @@
 #include <cwctype>
 #include <filesystem>
 #include <Psapi.h>
-#include <ShlObj_core.h>
+#include <ShlObj.h>
 #include "Logger.h"
 #include "NT_API.h"
 
@@ -45,6 +45,7 @@ public:
         double suspicionScore = 0;
         DWORDLONG cycleCounter = 0;
         std::vector<std::wstring> suspicionReason = {};
+        bool memoryScanned = false;
     };
 
     std::unordered_map<DWORD, ProcessInformation> processMap;
@@ -60,5 +61,5 @@ public:
     bool isCommandSuspicious(const std::wstring& command);
     void printSuspicious();
     DWORD64 CYCLE_COUNT = 0;
-private: 
+private:
 };
