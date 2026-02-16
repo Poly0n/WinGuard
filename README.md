@@ -20,7 +20,7 @@
   - Ability to log the exact time a detection occurs
   - Ability to white-list any app using the *whitelist.txt* file
 ### Memory Scans
-  - Scans flagged processes for private memory allocations that have read, write, and execute permissions
+  - Scans flagged processes for private memory allocations that have RWX permissions
 
 ## **Example Detections**
 
