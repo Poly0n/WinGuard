@@ -18,6 +18,8 @@
 ### Logging Capabilities
   - Ability to log the exact time a detection occurs
   - Ability to white-list any app using the *whitelist.txt* file
+### Memory Scans
+  - Scans flagged processes for private memory allocations that have read, write, and execute permissions
 
 ## **Example Detections**
 
@@ -57,15 +59,12 @@ msbuild WinGuard.slnx /p:Configuration=Release /p:Platform=x64
 
 ## **Updates**
 ### Improvements
-- Uses NtQuerySystemInformation instead of CreateToolhelp32Snapshot
-- Improved caching system for reduced redundant scanning operations
-- Improved DLL enumeration and scanning
 - Added security checks on any command line buffers that run to determine if they're malicious or not
 - Added rudimentary LOLBin detection with parent-child relationships
 - Added Memory Scans (Flags RWX Memory Regions)
 
 ### Bugs
-- Added accurate parent-child process tracking
+- Tuned parent-child process tracking
 - Fixed Command Line Buffers sometimes not getting logged
 - Improved scoring system to reduce false positives
 
