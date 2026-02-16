@@ -3,18 +3,19 @@
  
 > WinGuard is an educational / experimental EDR and is not intended to replace enterprise-grade security software.
 
-<b>Basic Windows EDR (Endpoint Detection and Response) To Help Monitor And Log Any Suspicious Processes Or Commands Running On Your PC.</b>
+<b>A User-Mode Windows Threat Detection Tool Inspired by EDR Techniques, To Help Monitor And Log Any Suspicious Activity On Your PC.</b>
 
 ## **Key Features**
 ### Process & Execution Monitoring
-  - Dumps any command line buffers that a process may try to run
-  - Detects any abnormal parent processes (spawning PowerShell, CMD, or WScript)
+  - Dumps and analyzes command line buffers for malicious activity
+  - Detects abnormal parent processes (spawning PowerShell, CMD, or WScript)
+  - Identifies LOLBin abuse patterns
   - Verifies running processes and DLLs for signature abnormalities (no signature, tampered file, untrusted signature, etc.)
 ### File System Analysis
   - Scans for processes and DLLs running from abnormal directories (%TEMP%, %APPDATA%, etc.)
   - Detects processes, DLLs, and directories running that are user-writable
 ### Persistence Detection
-  - Scans for changes in the Registry for persistence
+  - Monitors common autorun and persistence registry keys
 ### Logging Capabilities
   - Ability to log the exact time a detection occurs
   - Ability to white-list any app using the *whitelist.txt* file
