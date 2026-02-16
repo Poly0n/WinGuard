@@ -1,7 +1,9 @@
 #include "ProcessEnumerator.h"
+#include "MemoryScan.h"
 
 DWORDLONG CYCLE_COUNT = 0;
 Logger logger(L"logfile.txt");
+MemoryScan memScan;
 
 NtQuerySystemInformation_t getNtQuerySystemInformation() {
 	static NtQuerySystemInformation_t p =
@@ -115,17 +117,43 @@ void ProcessEnumerator::printSuspicious() {
 	for (auto& [pid, proc] : processMap) {
 		if (proc.suspicionScore > 8) {
 			std::wcout << "[!] " << proc.name << " is a malicious program" << std::endl;
+			if (!proc.memoryScanned) {
+				std::wcout << L"Conducting Memory Scan On:" << proc.name << std::endl;
+				if (memScan.analyseProcessMem(proc.pid, proc)) {
+					std::wcout << L"[+] Memory Read Successful!" << std::endl;
+				}
+				else {
+					std::wcout << L"[-] Memory Read Failed" << std::endl;
+				}
+				
+			}
+			proc.memoryScanned = true;
+
 			for (size_t i = 0; i < proc.suspicionReason.size(); ++i) {
 				logger.log(WARNING, proc.suspicionReason[i]);
 				std::wcout << "\t" << proc.suspicionReason[i] << std::endl;
 			}
+			
 		}
 		else if (proc.suspicionScore > 6) {
-			std::wcout << "[!] " << proc.name << " is a highly suspicious process" << std::endl;
+			std::wcout << L"[!] " << proc.name << L" is a highly suspicious process" << std::endl;
+			if (!proc.memoryScanned) {
+				std::wcout << L"Conducting Memory Scan On:" << proc.name << std::endl;
+				if (memScan.analyseProcessMem(proc.pid, proc)) {
+					std::wcout << L"[+] Memory Read Successful!" << std::endl;
+				}
+				else {
+					std::wcout << L"[-] Memory Read Failed" << std::endl;
+				}
+
+			}
+			proc.memoryScanned = true;
+			
 			for (size_t i = 0; i < proc.suspicionReason.size(); ++i) {
 				logger.log(WARNING, proc.suspicionReason[i]);
 				std::wcout << "\t" << proc.suspicionReason[i] << std::endl;
 			}
+			
 		}
 		else if (proc.suspicionScore > 4) {
 			std::wcout << "[!] " << proc.name << " is a suspicious program" << std::endl;
@@ -140,9 +168,9 @@ void ProcessEnumerator::printSuspicious() {
 }
 
 bool ProcessEnumerator::isRelativePath(const std::wstring& path) {
-	if (path.empty()) 
+	if (path.empty())
 		return false;
-	
+
 	if (path.starts_with(L"\\\\"))
 		return false;
 
@@ -197,7 +225,7 @@ std::wstring ProcessEnumerator::getKnownFolder(REFKNOWNFOLDERID folderId) {
 bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
 	if (modName.empty())
 		return false;
-	
+
 	std::filesystem::path p = std::filesystem::weakly_canonical(modName);
 
 	std::filesystem::path windowsDir = getKnownFolder(FOLDERID_Windows);
@@ -210,7 +238,7 @@ bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
 	if (p.string().starts_with(windowsDir.string()) ||
 		p.string().starts_with(programFiles.string()) ||
 		p.string().starts_with(programFilesX86.string()) ||
-		p.string().starts_with(system32.string()) || 
+		p.string().starts_with(system32.string()) ||
 		p.string().starts_with(systemX86.string())) {
 		return false;
 	}
@@ -243,7 +271,7 @@ bool ProcessEnumerator::isCommandSuspicious(const std::wstring& command) {
 
 	std::wstring lower = command;
 	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
-	
+
 	static const std::vector<std::wstring> flags = {
 		L"-enc",
 		L"-encodedcommand",
@@ -266,4 +294,3 @@ bool ProcessEnumerator::isCommandSuspicious(const std::wstring& command) {
 
 	return false;
 }
-
