@@ -117,8 +117,8 @@ void ProcessEnumerator::printSuspicious() {
 	for (auto& [pid, proc] : processMap) {
 		if (proc.suspicionScore > 8) {
 			std::wcout << "[!] " << proc.name << " is a malicious program" << std::endl;
+			std::wcout << L"Conducting Memory Scan On:" << proc.name << std::endl;
 			if (!proc.memoryScanned) {
-				std::wcout << L"Conducting Memory Scan On:" << proc.name << std::endl;
 				if (memScan.analyseProcessMem(proc.pid, proc)) {
 					std::wcout << L"[+] Memory Read Successful!" << std::endl;
 				}
@@ -137,8 +137,8 @@ void ProcessEnumerator::printSuspicious() {
 		}
 		else if (proc.suspicionScore > 6) {
 			std::wcout << L"[!] " << proc.name << L" is a highly suspicious process" << std::endl;
+			std::wcout << L"Conducting Memory Scan On:" << proc.name << std::endl;
 			if (!proc.memoryScanned) {
-				std::wcout << L"Conducting Memory Scan On:" << proc.name << std::endl;
 				if (memScan.analyseProcessMem(proc.pid, proc)) {
 					std::wcout << L"[+] Memory Read Successful!" << std::endl;
 				}
@@ -226,7 +226,18 @@ bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
 	if (modName.empty())
 		return false;
 
-	std::filesystem::path p = std::filesystem::weakly_canonical(modName);
+	if (!std::filesystem::exists(modName)) {
+		return false;
+	}
+
+	std::filesystem::path p;
+
+	try {
+		p = std::filesystem::weakly_canonical(modName);
+	}
+	catch(...) {
+		return false;
+	}
 
 	std::filesystem::path windowsDir = getKnownFolder(FOLDERID_Windows);
 	std::filesystem::path programFiles = getKnownFolder(FOLDERID_ProgramFiles);
