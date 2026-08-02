@@ -94,7 +94,7 @@ void ProcessEnumerator::collectProcesses() {
 
 }
 
-std::wstring ProcessEnumerator::getPath(DWORD pid) const {
+std::filesystem::path ProcessEnumerator::getPath(DWORD pid) const {
 	HANDLE hProcess = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
 
 	if (hProcess == NULL) {
@@ -110,7 +110,7 @@ std::wstring ProcessEnumerator::getPath(DWORD pid) const {
 	}
 
 	CloseHandle(hProcess);
-	return std::wstring(path, size);
+	return std::filesystem::path(path);
 }
 
 void ProcessEnumerator::printSuspicious() {
@@ -209,20 +209,8 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 	return false;
 }
 
-std::wstring ProcessEnumerator::getKnownFolder(REFKNOWNFOLDERID folderId) {
-	PWSTR path = nullptr;
-	std::wstring result;
 
-	if (SUCCEEDED(SHGetKnownFolderPath(folderId, KF_FLAG_DEFAULT, NULL, &path))) {
-		result = path;
-		CoTaskMemFree(path);
-	}
-
-	return result;
-}
-
-
-bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
+bool ProcessEnumerator::isPathUserLand(const std::filesystem::path& modName) {
 	if (modName.empty())
 		return false;
 
@@ -230,7 +218,7 @@ bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
 		return false;
 	}
 
-	std::filesystem::path p;
+	std::filesystem::path p = modName;
 
 	try {
 		p = std::filesystem::weakly_canonical(modName);
@@ -239,18 +227,21 @@ bool ProcessEnumerator::isPathUserLand(const std::wstring& modName) {
 		return false;
 	}
 
-	std::filesystem::path windowsDir = getKnownFolder(FOLDERID_Windows);
-	std::filesystem::path programFiles = getKnownFolder(FOLDERID_ProgramFiles);
-	std::filesystem::path programFilesX86 = getKnownFolder(FOLDERID_ProgramFilesX86);
-	std::filesystem::path system32 = getKnownFolder(FOLDERID_System);
-	std::filesystem::path systemX86 = getKnownFolder(FOLDERID_SystemX86);
+	std::wstring loweredCanonical = p.wstring();
+	std::transform(loweredCanonical.begin(), loweredCanonical.end(), loweredCanonical.begin(), ::towlower);
+
+	std::filesystem::path windowsDir = L"c:\\windows\\";
+	std::filesystem::path programFiles = L"c:\\program files\\";
+	std::filesystem::path programFilesX86 = L"c:\\program files (x86)\\";
+	std::filesystem::path system32 = L"c:\\windows\\system32\\";
+	std::filesystem::path systemX86 = L"c:\\windows\\syswow64\\";
 
 
-	if (p.string().starts_with(windowsDir.string()) ||
-		p.string().starts_with(programFiles.string()) ||
-		p.string().starts_with(programFilesX86.string()) ||
-		p.string().starts_with(system32.string()) ||
-		p.string().starts_with(systemX86.string())) {
+	if (loweredCanonical.starts_with(windowsDir.wstring()) ||
+		loweredCanonical.starts_with(programFiles.wstring()) ||
+		loweredCanonical.starts_with(programFilesX86.wstring()) ||
+		loweredCanonical.starts_with(system32.wstring()) ||
+		loweredCanonical.starts_with(systemX86.wstring())) {
 		return false;
 	}
 
