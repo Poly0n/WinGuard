@@ -1,6 +1,5 @@
 #include "SignatureChecker.h"
 
-
 ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const std::wstring& filePath) {
 	WINTRUST_FILE_INFO fileInfo{};
 	fileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
@@ -308,7 +307,6 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 
 				}
 				else {
-
 					continue;
 				}
 				if (procEnum.isCommandSuspicious(commandLineArg)) {
