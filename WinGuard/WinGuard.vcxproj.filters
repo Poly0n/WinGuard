@@ -30,6 +30,9 @@
     <ClCompile Include="src\WinGuard.cpp">
       <Filter>Source Files\src</Filter>
     </ClCompile>
+    <ClCompile Include="src\MemoryScan.cpp">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="includes\Logger.h">
@@ -45,6 +48,9 @@
       <Filter>Source Files\incldue</Filter>
     </ClInclude>
     <ClInclude Include="includes\NT_API.h">
+      <Filter>Source Files\incldue</Filter>
+    </ClInclude>
+    <ClInclude Include="includes\MemoryScan.h">
       <Filter>Source Files\incldue</Filter>
     </ClInclude>
   </ItemGroup>
