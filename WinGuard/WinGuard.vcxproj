@@ -147,6 +147,7 @@
     <ClCompile Include="src\ProcessEnumerator.cpp" />
     <ClCompile Include="src\SignatureChecker.cpp" />
     <ClCompile Include="src\WinGuard.cpp" />
+    <ClCompile Include="src\MemoryScan.cpp" />
   </ItemGroup>
 
   <ItemGroup>
@@ -155,6 +156,7 @@
     <ClInclude Include="includes\ProcessEnumerator.h" />
     <ClInclude Include="includes\SignatureChecker.h" />
     <ClInclude Include="includes\Whitelist.h" />
+    <ClInclude Include="includes\MemoryScan.h" />
   </ItemGroup>
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
