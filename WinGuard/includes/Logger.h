@@ -23,8 +23,8 @@ public:
   ~Logger() { logFile.close(); }
 
   void log(LogLevel level, const std::wstring &message) {
-    time_t now = time(nullptr);
-    struct tm buf;
+    std::time_t now = time(nullptr);
+    tm buf;
     if (localtime_s(&buf, &now) != 0) {
       std::wcerr << "Failed to get local time" << std::endl;
     }
@@ -35,7 +35,7 @@ public:
     logEntry << L"[" << timestamp << L"] " << levelToString(level) << L": "
              << message << std::endl;
 
-    if (logFile.is_open()) {
+    if (logFile) {
       logFile << logEntry.str();
       logFile.flush();
     } else {
