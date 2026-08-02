@@ -38,7 +38,7 @@ public:
         DWORD pid = 0;
         DWORD ppid = 0;
         std::wstring name = L"";
-        std::wstring path = L"";
+        std::filesystem::path path = L"";
         fileVerification certStatus = UNKNOWN;
         bool directoryWritable = false;
         bool fileWritable = false;
@@ -52,11 +52,10 @@ public:
     std::unordered_map<DWORD, std::wstring> abusedDLLs;
 
     void collectProcesses();
-    std::wstring getPath(DWORD pid) const;
-    std::wstring getKnownFolder(REFKNOWNFOLDERID folderId);
+    std::filesystem::path getPath(DWORD pid) const;
     bool isRelativePath(const std::wstring& path);
     bool isDLLPathSuspicious(const std::wstring& path);
-    bool isPathUserLand(const std::wstring& modName);
+    bool isPathUserLand(const std::filesystem::path& modName);
     bool isLOLBin(const std::wstring& path);
     bool isCommandSuspicious(const std::wstring& command);
     void printSuspicious();
