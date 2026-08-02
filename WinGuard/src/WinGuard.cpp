@@ -1,191 +1,216 @@
-#include <iostream>
-#include <Windows.h>
-#include <thread>
+#include "Logger.h"
 #include "ProcessEnumerator.h"
 #include "SignatureChecker.h"
-#include "Logger.h"
+#include <Windows.h>
+#include <iostream>
+#include <thread>
 
 bool quit = false;
 SignatureChecker sigCheck;
 ProcessEnumerator procEnum;
 
 struct RegistryWatchKey {
-    HKEY hive;
-    std::wstring path;
-    std::wstring name;
+  HKEY hive;
+  std::wstring path;
+  std::wstring name;
 };
 
 std::vector<RegistryWatchKey> persistenceKeys = {
-    { HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", L"HKCU Run" },
-    { HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", L"HKLM Run" },
-    { HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce", L"HKCU RunOnce" },
-    { HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce", L"HKLM RunOnce" }
-};
+    {HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+     L"HKCU Run"},
+    {HKEY_LOCAL_MACHINE, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+     L"HKLM Run"},
+    {HKEY_CURRENT_USER,
+     L"Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce", L"HKCU RunOnce"},
+    {HKEY_LOCAL_MACHINE,
+     L"Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+     L"HKLM RunOnce"}};
 
-void RegistryWatcherThread()
-{
-    Logger logger(L"logfile.txt");
+void RegistryWatcherThread() {
+  Logger logger(L"logfile.txt");
 
-    struct KeyInfo {
-        HKEY hKey;
-        HANDLE hEvent;
-        RegistryWatchKey regKey;
-        std::unordered_map<std::wstring, std::wstring> values;
-    };
+  struct KeyInfo {
+    HKEY hKey;
+    HANDLE hEvent;
+    RegistryWatchKey regKey;
+    std::unordered_map<std::wstring, std::wstring> values;
+  };
 
-    std::vector<KeyInfo> watchKeys;
+  std::vector<KeyInfo> watchKeys;
 
-    for (auto& key : persistenceKeys) {
-        HKEY hKey;
-        if (RegOpenKeyExW(key.hive, key.path.c_str(), 0, KEY_READ | KEY_NOTIFY, &hKey) == ERROR_SUCCESS) {
+  for (auto &key : persistenceKeys) {
+    HKEY hKey;
+    if (RegOpenKeyExW(key.hive, key.path.c_str(), 0, KEY_READ | KEY_NOTIFY,
+                      &hKey) == ERROR_SUCCESS) {
 
-            HANDLE hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
-            if (!hEvent) {
-                RegCloseKey(hKey);
-                continue;
-            }
+      HANDLE hEvent = CreateEvent(nullptr, TRUE, FALSE, nullptr);
+      if (!hEvent) {
+        RegCloseKey(hKey);
+        continue;
+      }
 
-            std::unordered_map<std::wstring, std::wstring> snapshot;
-            DWORD index = 0;
-            WCHAR valueName[256];
-            WCHAR valueData[1024];
-            DWORD nameSize, dataSize, type;
+      std::unordered_map<std::wstring, std::wstring> snapshot;
+      DWORD index = 0;
+      WCHAR valueName[256];
+      WCHAR valueData[1024];
+      DWORD nameSize, dataSize, type;
 
-            while (true) {
-                nameSize = _countof(valueName);
-                dataSize = sizeof(valueData);
-                LONG ret = RegEnumValueW(hKey, index, valueName, &nameSize, nullptr, &type, (LPBYTE)valueData, &dataSize);
-                if (ret == ERROR_NO_MORE_ITEMS) break;
-                if (ret == ERROR_SUCCESS && type == REG_SZ) {
-                    snapshot[valueName] = valueData;
-                }
-                ++index;
-            }
-
-            watchKeys.push_back({ hKey, hEvent, key, snapshot });
-
-            RegNotifyChangeKeyValue(hKey, TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, hEvent, TRUE);
+      while (true) {
+        nameSize = _countof(valueName);
+        dataSize = sizeof(valueData);
+        LONG ret = RegEnumValueW(hKey, index, valueName, &nameSize, nullptr,
+                                 &type, (LPBYTE)valueData, &dataSize);
+        if (ret == ERROR_NO_MORE_ITEMS)
+          break;
+        if (ret == ERROR_SUCCESS && type == REG_SZ) {
+          snapshot[valueName] = valueData;
         }
-        else {
-            std::wcout << L"[!] Failed to open registry key: " << key.name << std::endl;
-        }
+        ++index;
+      }
+
+      watchKeys.push_back({hKey, hEvent, key, snapshot});
+
+      RegNotifyChangeKeyValue(
+          hKey, TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET,
+          hEvent, TRUE);
+    } else {
+      std::wcout << L"[!] Failed to open registry key: " << key.name
+                 << std::endl;
+    }
+  }
+
+  while (!quit) {
+    if (watchKeys.empty()) {
+      Sleep(1000);
+      continue;
     }
 
-    while (!quit) {
-        if (watchKeys.empty()) {
-            Sleep(1000);
-            continue;
+    std::vector<HANDLE> events;
+    for (auto &k : watchKeys)
+      events.push_back(k.hEvent);
+
+    DWORD waitResult = WaitForMultipleObjects((DWORD)events.size(),
+                                              events.data(), FALSE, 1000);
+
+    if (waitResult >= WAIT_OBJECT_0 &&
+        waitResult < WAIT_OBJECT_0 + events.size()) {
+      size_t idx = waitResult - WAIT_OBJECT_0;
+      auto &keyInfo = watchKeys[idx];
+
+      std::unordered_map<std::wstring, std::wstring> currentValues;
+      DWORD index = 0;
+      WCHAR valueName[256];
+      WCHAR valueData[1024];
+      DWORD nameSize, dataSize, type;
+
+      while (true) {
+        nameSize = _countof(valueName);
+        dataSize = sizeof(valueData);
+        LONG ret = RegEnumValueW(keyInfo.hKey, index, valueName, &nameSize,
+                                 nullptr, &type, (LPBYTE)valueData, &dataSize);
+        if (ret == ERROR_NO_MORE_ITEMS)
+          break;
+        if (ret == ERROR_SUCCESS && type == REG_SZ) {
+          currentValues[valueName] = valueData;
         }
+        ++index;
+      }
 
-        std::vector<HANDLE> events;
-        for (auto& k : watchKeys) events.push_back(k.hEvent);
+      for (auto &[name, data] : currentValues) {
+        if (keyInfo.values.find(name) == keyInfo.values.end()) {
+          std::wcout << L"[!] New startup entry detected in "
+                     << keyInfo.regKey.name << L": " << name << L" -> " << data
+                     << std::endl;
 
-        DWORD waitResult = WaitForMultipleObjects((DWORD)events.size(), events.data(), FALSE, 1000);
+          std::wstring logMessage = L"New startup entry detected: " +
+                                    keyInfo.regKey.name + L" " + name +
+                                    L" -> " + data;
 
-        if (waitResult >= WAIT_OBJECT_0 && waitResult < WAIT_OBJECT_0 + events.size()) {
-            size_t idx = waitResult - WAIT_OBJECT_0;
-            auto& keyInfo = watchKeys[idx];
-
-            std::unordered_map<std::wstring, std::wstring> currentValues;
-            DWORD index = 0;
-            WCHAR valueName[256];
-            WCHAR valueData[1024];
-            DWORD nameSize, dataSize, type;
-
-            while (true) {
-                nameSize = _countof(valueName);
-                dataSize = sizeof(valueData);
-                LONG ret = RegEnumValueW(keyInfo.hKey, index, valueName, &nameSize, nullptr, &type, (LPBYTE)valueData, &dataSize);
-                if (ret == ERROR_NO_MORE_ITEMS) break;
-                if (ret == ERROR_SUCCESS && type == REG_SZ) {
-                    currentValues[valueName] = valueData;
-                }
-                ++index;
-            }
-
-            for (auto& [name, data] : currentValues) {
-                if (keyInfo.values.find(name) == keyInfo.values.end()) {
-                    std::wcout << L"[!] New startup entry detected in " << keyInfo.regKey.name
-                        << L": " << name << L" -> " << data << std::endl;
-
-                    std::wstring logMessage = L"New startup entry detected: " + keyInfo.regKey.name + L" " + name + L" -> " + data;
-
-                    logger.log(WARNING, logMessage); 
-
-                }
-            }
-
-            keyInfo.values = currentValues;
-
-            RegNotifyChangeKeyValue(keyInfo.hKey, TRUE, REG_NOTIFY_CHANGE_NAME | REG_NOTIFY_CHANGE_LAST_SET, keyInfo.hEvent, TRUE);
+          logger.log(WARNING, logMessage);
         }
-    }
+      }
 
-    for (auto& k : watchKeys) {
-        CloseHandle(k.hEvent);
-        RegCloseKey(k.hKey);
+      keyInfo.values = currentValues;
+
+      RegNotifyChangeKeyValue(keyInfo.hKey, TRUE,
+                              REG_NOTIFY_CHANGE_NAME |
+                                  REG_NOTIFY_CHANGE_LAST_SET,
+                              keyInfo.hEvent, TRUE);
     }
+  }
+
+  for (auto &k : watchKeys) {
+    CloseHandle(k.hEvent);
+    RegCloseKey(k.hKey);
+  }
 }
 
-void ClearConsole()
-{
-	HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-	if (hConsole == INVALID_HANDLE_VALUE) return;
+void ClearConsole() {
+  HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+  if (hConsole == INVALID_HANDLE_VALUE)
+    return;
 
-	CONSOLE_SCREEN_BUFFER_INFO csbi;
-	DWORD count;
-	DWORD cellCount;
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  DWORD count;
+  DWORD cellCount;
 
-	if (!GetConsoleScreenBufferInfo(hConsole, &csbi)) return;
+  if (!GetConsoleScreenBufferInfo(hConsole, &csbi))
+    return;
 
-	cellCount = csbi.dwSize.X * csbi.dwSize.Y;
+  cellCount = csbi.dwSize.X * csbi.dwSize.Y;
 
-	FillConsoleOutputCharacter(hConsole, L' ', cellCount, { 0,0 }, &count);
-	FillConsoleOutputAttribute(hConsole, csbi.wAttributes, cellCount, { 0,0 }, &count);
-	SetConsoleCursorPosition(hConsole, { 0,0 });
+  FillConsoleOutputCharacter(hConsole, L' ', cellCount, {0, 0}, &count);
+  FillConsoleOutputAttribute(hConsole, csbi.wAttributes, cellCount, {0, 0},
+                             &count);
+  SetConsoleCursorPosition(hConsole, {0, 0});
 }
-
-
 
 void clearThread() {
-    while (!quit) {
-       ClearConsole();
-       std::cout << " __      __.___         ________                       .___   \n"
-           "/  \\    /  \\   | ____  /  _____/ __ _______ _______  __| _//\\      \n"
-           "\\   \\/\\/   /   |/    \\/   \\  ___|  |  \\__  \\_  __ \\/ __ |  \\/ \n"
-           " \\        /|   |   |  \\    \\_\\  \  |  // __ \\|  | \\/ /_/ |  /\\  \n"
-           "  \\__/\\  / |___|___|  /\______  /____/(____  /__|  \\____ |  \\/     \n"
-           "       \\/           \\/       \\/           \\/          \\/         \n";
-       std::this_thread::sleep_for(std::chrono::seconds(10));
-    }
+  while (!quit) {
+    ClearConsole();
+    std::cout
+        << " __      __.___         ________                       .___   \n"
+           "/  \\    /  \\   | ____  /  _____/ __ _______ _______  __| _//\\   "
+           "   \n"
+           "\\   \\/\\/   /   |/    \\/   \\  ___|  |  \\__  \\_  __ \\/ __ |  "
+           "\\/ \n"
+           " \\        /|   |   |  \\    \\_\\  \  |  // __ \\|  | \\/ /_/ |  "
+           "/\\  \n"
+           "  \\__/\\  / |___|___|  /\______  /____/(____  /__|  \\____ |  \\/ "
+           "    \n"
+           "       \\/           \\/       \\/           \\/          \\/      "
+           "   \n";
+    std::this_thread::sleep_for(std::chrono::seconds(10));
+  }
 }
 
 int main() {
 
-    std::cout << "\t\t\t\tAll suspicious activity is in the timed logfile.txt!" << std::endl;
-    Sleep(3000);
+  std::cout << "\t\t\t\tAll suspicious activity is in the timed logfile.txt!"
+            << std::endl;
+  Sleep(3000);
 
-    std::thread consoleGraphics(clearThread);
-    std::thread regWatcher(RegistryWatcherThread);
+  std::thread consoleGraphics(clearThread);
+  std::thread regWatcher(RegistryWatcherThread);
 
-    while (!quit) {
+  while (!quit) {
 
-        procEnum.collectProcesses();
-        if (procEnum.processMap.empty()) {
-            std::wcout << L"[!] No Processes Collected\n";
-        }
-
-        sigCheck.analyseProcessBehavior(procEnum.processMap);
-        sigCheck.parentProcesses(procEnum.processMap);
-        procEnum.printSuspicious();
-        procEnum.processMap.clear();
-        procEnum.CYCLE_COUNT = 0;
-        Sleep(500);
+    procEnum.collectProcesses();
+    if (procEnum.processMap.empty()) {
+      std::wcout << L"[!] No Processes Collected\n";
     }
 
-    quit = true;
-    regWatcher.join();
-    consoleGraphics.join();
+    sigCheck.analyseProcessBehavior(procEnum.processMap);
+    sigCheck.parentProcesses(procEnum.processMap);
+    procEnum.printSuspicious();
+    procEnum.processMap.clear();
+    procEnum.CYCLE_COUNT = 0;
+    Sleep(500);
+  }
 
-    return 0;
+  quit = true;
+  regWatcher.join();
+  consoleGraphics.join();
+
+  return 0;
 }
