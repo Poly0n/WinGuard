@@ -1,5 +1,6 @@
 #include "SignatureChecker.h"
 
+
 ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const std::wstring& filePath) {
 	WINTRUST_FILE_INFO fileInfo{};
 	fileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
@@ -151,19 +152,19 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 
 			proc.directoryWritable = dirWritable;
 			if (dirWritable) {
-				proc.suspicionReason.push_back(std::wstring(L"[!] Directory is writable: ") + proc.path);
+				proc.suspicionReason.push_back(std::wstring(L"[!] Directory is writable: ") + proc.path.wstring());
 				proc.suspicionScore += 1;
 			}
 		}
 
 
 		if (fileWritable) {
-			proc.suspicionReason.push_back(std::wstring(L"[!] File is user writable: ") + proc.path);
+			proc.suspicionReason.push_back(std::wstring(L"[!] File is user writable: ") + proc.path.wstring());
 			proc.suspicionScore += 1;
 		}
 		
 		if (suspiciousPath) {
-			proc.suspicionReason.push_back(std::wstring(L"[!] Directory is Suspicious: ") + proc.path);
+			proc.suspicionReason.push_back(std::wstring(L"[!] Directory is Suspicious: ") + proc.path.wstring());
 			proc.suspicionScore += 2;
 		}
 
@@ -221,7 +222,8 @@ void SignatureChecker::analyseProcessBehavior(std::unordered_map<DWORD, ProcessE
 		}
 
 	}
-	
+
+
 	return;
 }
 
@@ -306,9 +308,9 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 
 				}
 				else {
-					commandLineArg = commandIt->second;
-				}
 
+					continue;
+				}
 				if (procEnum.isCommandSuspicious(commandLineArg)) {
 					log.log(CRITICAL, L"[!] Possible malicious command execution: " + commandLineArg);
 					std::wcout << L"[!] " << parent.name << " Malicious Command Line Buffer:" << commandLineArg << std::endl;
@@ -392,6 +394,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 			proc.suspicionScore += 4;
 			proc.suspicionReason.push_back(std::wstring(L"[!] Untrusted top-most parent signature: ") + topParent.name);
 		}
+
 	}
 }
 
@@ -401,6 +404,9 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 	DWORD cbNeeded;
 	unsigned int i;
 	ProcessEnumerator::fileVerification filerVer;
+
+
+	
 
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION |
 		PROCESS_VM_READ, FALSE, pid);
@@ -425,12 +431,12 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 			auto& moduleSet = it->second;
 			
-			TCHAR szModName[MAX_PATH];
+			WCHAR szModName[MAX_PATH];
 
 			if (GetModuleFileNameEx(hProcess, hMods[i], szModName,
-				sizeof(szModName) / sizeof(TCHAR))) {
+				sizeof(szModName) / sizeof(WCHAR)) != 0) {
 
-				std::wstring moduleName(szModName);
+				std::filesystem::path moduleName(szModName);
 				;
 
 				if (!moduleSet.emplace(moduleName).second) {
@@ -446,7 +452,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 				bool suspicious = proc.isDLLPathSuspicious(moduleName);
 				bool userland = proc.isPathUserLand(moduleName);
 
-				std::wstring moduleDir;
+				std::filesystem::path moduleDir;
 
 				try {
 					moduleDir = std::filesystem::path(moduleName).parent_path().wstring();
@@ -459,7 +465,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 				if (userland && writableDir) {
 					ProcIt->second.suspicionScore += 2;
-					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Loaded in Writable Directory in Userland: ") + moduleName);
+					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Loaded in Writable Directory in Userland: ") + moduleName.wstring());
 				}
 
 				if (relative && suspicious) {
@@ -467,18 +473,18 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 					if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File, Certificate, or Publish is explicitly untrusted: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File, Certificate, or Publish is explicitly untrusted: ") + moduleName.wstring());
 					}
 					else if (filerVer == ProcessEnumerator::UNTRUSTED_SIGNER) {
 						ProcIt->second.suspicionScore += 5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File signature is not trusted: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File signature is not trusted: ") + moduleName.wstring());
 					}
 					else if (filerVer == ProcessEnumerator::TAMPERED) {
 						ProcIt->second.suspicionScore += 3;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + moduleName.wstring());
 					}
 					else {
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is extremely suspicious: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is extremely suspicious: ") + moduleName.wstring());
 						ProcIt->second.suspicionScore += 4;
 						continue;
 					}
@@ -489,27 +495,27 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 					if (filerVer == ProcessEnumerator::SUCCESS) {
 						ProcIt->second.suspicionScore += .5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Signed DLL Path Is Suspicious: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Signed DLL Path Is Suspicious: ") + moduleName.wstring());
 					}
 
 					else if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File, Certificate, or Publish is explicitly untrusted: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File, Certificate, or Publish is explicitly untrusted: ") + moduleName.wstring());
 					}
 					else if (filerVer == ProcessEnumerator::UNTRUSTED_SIGNER) {
 						ProcIt->second.suspicionScore += 5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File signature is not trusted: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File signature is not trusted: ") + moduleName.wstring());
 					}
 					else if (filerVer == ProcessEnumerator::TAMPERED) {
 						ProcIt->second.suspicionScore += 3;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + moduleName.wstring());
 					}
 					else if (filerVer == ProcessEnumerator::NO_SIGNATURE) {
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Unsigned, path is suspicious: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Unsigned, path is suspicious: ") + moduleName.wstring());
 						ProcIt->second.suspicionScore += 2;
 					}
 					else {
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Path Is Suspicious: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL Path Is Suspicious: ") + moduleName.wstring());
 						ProcIt->second.suspicionScore += 1;
 					}
 				}
@@ -518,26 +524,26 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 
 					if (filerVer == ProcessEnumerator::SUCCESS) {
 						ProcIt->second.suspicionScore += 1;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Signed DLL Is Relative: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] Signed DLL Is Relative: ") + moduleName.wstring());
 						continue;
 					}
 					else if (filerVer == ProcessEnumerator::ADMIN) {
 						ProcIt->second.suspicionScore += 5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File, Certificate, or Publish is explicitly untrusted: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File, Certificate, or Publish is explicitly untrusted: ") + moduleName.wstring());
 						continue;
 					}
 					else if (filerVer == ProcessEnumerator::UNTRUSTED_SIGNER) {
 						ProcIt->second.suspicionScore += 5;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File signature is not trusted: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File signature is not trusted: ") + moduleName.wstring());
 						continue;
 					}
 					else if (filerVer == ProcessEnumerator::TAMPERED) {
 						ProcIt->second.suspicionScore += 3;
-						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + moduleName);
+						ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL File has been tampered with: ") + moduleName.wstring());
 						continue;
 					}
 
-					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is relative : ") + moduleName);
+					ProcIt->second.suspicionReason.push_back(std::wstring(L"[!] DLL path is relative : ") + moduleName.wstring());
 					ProcIt->second.suspicionScore += 2;
 				}
 			}
@@ -592,6 +598,6 @@ std::wstring SignatureChecker::getCommandLineBuffer(HANDLE hProcess) {
 	if (!ReadProcessMemory(hProcess, params.CommandLine.Buffer, commandLine.data(), params.CommandLine.Length, nullptr)) {
 		return L"";
 	}
+
 	return commandLine;
 }
-
