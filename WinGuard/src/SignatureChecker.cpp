@@ -403,9 +403,6 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 	unsigned int i;
 	ProcessEnumerator::fileVerification filerVer;
 
-
-	
-
 	hProcess = OpenProcess(PROCESS_QUERY_INFORMATION |
 		PROCESS_VM_READ, FALSE, pid);
 
