@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <array>
 #include <Windows.h>
 #include <string>
 #include <TlHelp32.h>
