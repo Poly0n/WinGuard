@@ -250,7 +250,7 @@ bool ProcessEnumerator::isLOLBin(const std::wstring& path) {
 
 	std::transform(filename.begin(), filename.end(), filename.begin(), ::towlower);
 
-	static const std::unordered_set<std::wstring> lolbins = {
+	constexpr std::array<std::wstring_view, 10> lolbins = {
 		L"rundll32.exe",
 		L"mshta.exe",
 		L"regsvr32.exe",
@@ -263,7 +263,7 @@ bool ProcessEnumerator::isLOLBin(const std::wstring& path) {
 		L"bitsadmin.exe"
 	};
 
-	return lolbins.contains(filename);
+	return std::find(lolbins.begin(), lolbins.end(), filename) != lolbins.end();
 }
 
 bool ProcessEnumerator::isCommandSuspicious(const std::wstring& command) {
