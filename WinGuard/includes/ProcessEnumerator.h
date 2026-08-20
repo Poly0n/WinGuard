@@ -3,6 +3,7 @@
 #include <array>
 #include <Windows.h>
 #include <string>
+#include <string_view>
 #include <TlHelp32.h>
 #include <vector>
 #include <unordered_map>
@@ -50,7 +51,6 @@ public:
     };
 
     std::unordered_map<DWORD, ProcessInformation> processMap;
-    std::unordered_map<DWORD, std::wstring> abusedDLLs;
 
     void collectProcesses();
     std::filesystem::path getPath(DWORD pid) const;
