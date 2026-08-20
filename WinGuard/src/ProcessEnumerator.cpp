@@ -187,22 +187,20 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 	if (lower.empty())
 		return false;
 
-	std::filesystem::path p(lower);
+	std::wstring p(lower);
 
-	static const std::vector<std::wstring>susPaths = {
-		L"temp",
-		L"appdata",
-		L"downloads",
-		L"programdata",
-		L"public"
+	
+	constexpr std::array susPaths = {
+		std::wstring_view(L"temp"),
+		std::wstring_view(L"appdata"),
+		std::wstring_view(L"downloads"),
+		std::wstring_view(L"programdata"),
+		std::wstring_view(L"public")
 	};
 
-	for (const auto& part : p) {
-		for (const auto& suspect : susPaths) {
-			if (_wcsicmp(part.c_str(), suspect.c_str()) == 0) {
-				return true;
-			}
-
+	for (const auto& suspect : susPaths) {
+		if (p.find(suspect) != std::wstring_view::npos) {
+			return true;
 		}
 	}
 
@@ -230,19 +228,18 @@ bool ProcessEnumerator::isPathUserLand(const std::filesystem::path& modName) {
 	std::wstring loweredCanonical = p.wstring();
 	std::transform(loweredCanonical.begin(), loweredCanonical.end(), loweredCanonical.begin(), ::towlower);
 
-	std::filesystem::path windowsDir = L"c:\\windows\\";
-	std::filesystem::path programFiles = L"c:\\program files\\";
-	std::filesystem::path programFilesX86 = L"c:\\program files (x86)\\";
-	std::filesystem::path system32 = L"c:\\windows\\system32\\";
-	std::filesystem::path systemX86 = L"c:\\windows\\syswow64\\";
+	constexpr std::array systemPaths = {
+		std::wstring_view(L"c:\\windows\\"),
+		std::wstring_view(L"c:\\program files\\"),
+		std::wstring_view(L"c:\\program files (x86)\\"),
+		std::wstring_view(L"c:\\windows\\system32\\"),
+		std::wstring_view(L"c:\\windows\\syswow64\\")
+	};
 
-
-	if (loweredCanonical.starts_with(windowsDir.wstring()) ||
-		loweredCanonical.starts_with(programFiles.wstring()) ||
-		loweredCanonical.starts_with(programFilesX86.wstring()) ||
-		loweredCanonical.starts_with(system32.wstring()) ||
-		loweredCanonical.starts_with(systemX86.wstring())) {
-		return false;
+	for (const auto& path : systemPaths) {
+		if (loweredCanonical.starts_with(path)) {
+			return false;
+		}
 	}
 
 	return true;
@@ -274,22 +271,22 @@ bool ProcessEnumerator::isCommandSuspicious(const std::wstring& command) {
 	std::wstring lower = command;
 	std::transform(lower.begin(), lower.end(), lower.begin(), ::towlower);
 
-	static const std::vector<std::wstring> flags = {
-		L"-enc",
-		L"-encodedcommand",
-		L"-nop",
-		L"-w hidden",
-		L"-executionpolicy bypass",
-		L"iex(",
-		L"downloadstring",
-		L"cmd /c powershell",
-		L"certutil -decode",
-		L"bitsadmin",
-		L"mshta http",
+	constexpr std::array flags = {
+		std::wstring_view(L"-enc"),
+		std::wstring_view(L"-encodedcommand"),
+		std::wstring_view(L"-nop"),
+		std::wstring_view(L"-w hidden"),
+		std::wstring_view(L"-executionpolicy bypass"),
+		std::wstring_view(L"iex("),
+		std::wstring_view(L"downloadstring"),
+		std::wstring_view(L"cmd /c powershell"),
+		std::wstring_view(L"certutil -decode"),
+		std::wstring_view(L"bitsadmin"),
+		std::wstring_view(L"mshta http")
 	};
 
 	for (auto& token : flags) {
-		if (lower.find(token) != std::wstring::npos) {
+		if (lower.find(token) != std::wstring_view::npos) {
 			return true;
 		}
 	}
