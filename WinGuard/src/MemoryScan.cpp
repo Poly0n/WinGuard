@@ -15,7 +15,7 @@ double MemoryScan::calculateEntropy(const BYTE* data, size_t size) {
 		if (counts[i] == 0)
 			continue;
 
-		double p = static_cast<double>(counts[i]) / size;
+		const double p = static_cast<double>(counts[i]) / size;
 		entropy -= p * log2(p);
 	}
 
