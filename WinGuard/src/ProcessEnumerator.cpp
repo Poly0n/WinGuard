@@ -186,9 +186,6 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 
 	if (lower.empty())
 		return false;
-
-	std::wstring p(lower);
-
 	
 	constexpr std::array susPaths = {
 		std::wstring_view(L"temp"),
@@ -199,7 +196,7 @@ bool ProcessEnumerator::isDLLPathSuspicious(const std::wstring& path) {
 	};
 
 	for (const auto& suspect : susPaths) {
-		if (p.find(suspect) != std::wstring_view::npos) {
+		if (lower.find(suspect) != std::wstring_view::npos) {
 			return true;
 		}
 	}
