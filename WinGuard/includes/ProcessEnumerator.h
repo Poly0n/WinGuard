@@ -54,7 +54,7 @@ public:
 
     void collectProcesses();
     std::filesystem::path getPath(DWORD pid) const;
-    bool isRelativePath(const std::wstring& path);
+    bool isRelativePath(const std::wstring& path) noexcept;
     bool isDLLPathSuspicious(const std::wstring& path);
     bool isPathUserLand(const std::filesystem::path& modName);
     bool isLOLBin(const std::wstring& path);
