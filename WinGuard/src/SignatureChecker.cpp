@@ -1,6 +1,7 @@
 #include "SignatureChecker.h"
 
-ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const std::wstring& filePath) {
+
+ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const std::wstring& filePath) noexcept {
 	WINTRUST_FILE_INFO fileInfo{};
 	fileInfo.cbStruct = sizeof(WINTRUST_FILE_INFO);
 	fileInfo.pcwszFilePath = filePath.c_str();
@@ -18,7 +19,7 @@ ProcessEnumerator::fileVerification SignatureChecker::verifyFileSignature(const 
 
 	GUID policyGUID = WINTRUST_ACTION_GENERIC_VERIFY_V2;
 
-	LONG status = WinVerifyTrust(nullptr, &policyGUID, &trustData);
+	const LONG status = WinVerifyTrust(nullptr, &policyGUID, &trustData);
 
 	trustData.dwStateAction = WTD_STATEACTION_CLOSE;
 	WinVerifyTrust(nullptr, &policyGUID, &trustData);
@@ -91,7 +92,7 @@ bool SignatureChecker::getFileWritableCache(const std::wstring& path) {
 
 	HANDLE hFile = CreateFileW(path.c_str(), FILE_WRITE_DATA | FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 	
-	bool result = (hFile != INVALID_HANDLE_VALUE);
+	const bool result = (hFile != INVALID_HANDLE_VALUE);
 
 	if (result) {
 		CloseHandle(hFile);
@@ -307,6 +308,7 @@ void SignatureChecker::parentProcesses(std::unordered_map<DWORD, ProcessEnumerat
 
 				}
 				else {
+
 					continue;
 				}
 				if (procEnum.isCommandSuspicious(commandLineArg)) {
@@ -431,8 +433,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 			if (GetModuleFileNameEx(hProcess, hMods[i], szModName,
 				sizeof(szModName) / sizeof(WCHAR)) != 0) {
 
-				std::filesystem::path moduleName(szModName);
-				;
+				const std::filesystem::path moduleName(szModName);
 
 				if (!moduleSet.emplace(moduleName).second) {
 					continue;
@@ -443,9 +444,9 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					continue;
 				}
 
-				bool relative = proc.isRelativePath(moduleName);
-				bool suspicious = proc.isDLLPathSuspicious(moduleName);
-				bool userland = proc.isPathUserLand(moduleName);
+				const bool relative = proc.isRelativePath(moduleName);
+				const bool suspicious = proc.isDLLPathSuspicious(moduleName);
+				const bool userland = proc.isPathUserLand(moduleName);
 
 				std::filesystem::path moduleDir;
 
@@ -456,7 +457,7 @@ bool SignatureChecker::getModules(DWORD pid, ProcessEnumerator& proc, std::unord
 					moduleDir = L"";
 				}
 
-				bool writableDir = !moduleDir.empty() && getCachedDirectory(moduleDir);
+				const bool writableDir = !moduleDir.empty() && getCachedDirectory(moduleDir);
 
 				if (userland && writableDir) {
 					ProcIt->second.suspicionScore += 2;
