@@ -167,7 +167,7 @@ void ProcessEnumerator::printSuspicious() {
 	return;
 }
 
-bool ProcessEnumerator::isRelativePath(const std::wstring& path) {
+bool ProcessEnumerator::isRelativePath(const std::wstring& path) noexcept {
 	if (path.empty())
 		return false;
 
