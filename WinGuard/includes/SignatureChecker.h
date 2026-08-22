@@ -1,5 +1,6 @@
 #pragma once
 #include "ProcessEnumerator.h"
+#include <memory>
 #include <unordered_map>
 #include <WinTrust.h>
 #include <winternl.h>
@@ -29,7 +30,7 @@ private:
 	std::unordered_map<std::wstring, bool> fileWritableCache;
 	std::unordered_map<DWORD, std::unordered_set<std::wstring>> moduleCache;
 	std::unordered_map<DWORD, std::wstring> commandCache;
-	ProcessEnumerator::fileVerification verifyFileSignature(const std::wstring& filePath);
+	ProcessEnumerator::fileVerification verifyFileSignature(const std::wstring& filePath) noexcept;
 	std::wstring getCommandLineBuffer(HANDLE hProcess);
 	bool getCachedDirectory(const std::wstring& dir);
 	bool isDirectoryUserWritable(const std::wstring& filePath);
